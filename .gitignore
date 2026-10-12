@@ -1,0 +1,6 @@
+supabase/.temp/
+.env
+.env.local
+.env*.local
+node_modules/
+VISUAL_INTELLIGENCE2.0-main/supabase/.temp/

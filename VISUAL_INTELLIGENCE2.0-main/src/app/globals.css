@@ -1,0 +1,236 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-brand-bg: #EBE8E3;
+  --color-brand-fg: #1A1A1A;
+  --color-brand-accent: #6b0f1a;
+  --color-brand-accent-strong: #4a0a12;
+  --color-brand-dark: #0F0F0F;
+  --color-brand-light: #F5F3EF;
+
+  --font-serif: "Playfair Display", serif;
+  --font-sans: "Inter", sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: var(--color-brand-bg);
+    --foreground: var(--color-brand-fg);
+    --nav-h: 68px;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--color-brand-bg);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  html::before {
+    content: "";
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: 
+      radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.03) 0%, transparent 40%),
+      radial-gradient(circle at 80% 20%, rgba(0, 0, 0, 0.02) 0%, transparent 50%),
+      radial-gradient(circle at 20% 80%, rgba(0, 0, 0, 0.015) 0%, transparent 50%);
+    animation: shimmer 12s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);
+    pointer-events: none;
+    z-index: -3;
+  }
+  
+  * {
+    cursor: none !important;
+  }
+
+  body {
+    background-color: transparent;
+    color: var(--color-brand-fg);
+    overflow-x: hidden;
+    transition: opacity 0.2s ease;
+  }
+
+  section[data-bg="dark"],
+  footer[data-bg="dark"] {
+    position: relative;
+    background-color: transparent !important;
+    color: var(--color-brand-bg);
+  }
+
+  section[data-bg="dark"]::before,
+  footer[data-bg="dark"]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: #050505;
+    z-index: -2;
+    pointer-events: none;
+  }
+
+  @keyframes shimmer {
+    0% { transform: rotate(0deg) scale(1) translate(0, 0); opacity: 0.5; }
+    100% { transform: rotate(10deg) scale(1.1) translate(-2%, -2%); opacity: 1; }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  @keyframes revealUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+  }
+  
+  ::selection {
+    background-color: var(--color-brand-fg);
+    color: var(--color-brand-bg);
+  }
+}
+
+@layer components {
+  .luxury-button {
+    position: relative;
+    overflow: hidden;
+    padding: 1rem 2rem;
+    border: 1px solid var(--color-brand-fg);
+    color: var(--color-brand-fg);
+    font-family: var(--font-sans);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    transition: color 0.35s cubic-bezier(0.76, 0, 0.24, 1);
+    will-change: color;
+  }
+  
+  .luxury-button::before {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--color-brand-fg);
+    transition: transform 0.35s cubic-bezier(0.76, 0, 0.24, 1);
+    z-index: -1;
+    will-change: transform;
+  }
+  
+  .luxury-button:hover {
+    color: var(--color-brand-bg);
+  }
+  
+  .luxury-button:hover::before {
+    transform: translateY(-100%);
+  }
+
+  .tilt-3d {
+    transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.5s ease;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  
+  .tilt-3d:hover {
+    transform: perspective(1200px) rotateX(4deg) rotateY(-4deg) scale3d(1.02, 1.02, 1.02);
+    box-shadow: -10px 10px 30px rgba(255, 255, 255, 0.03);
+  }
+
+  /* Section container — full width with consistent horizontal padding */
+  .site-container {
+    width: 100%;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: clamp(1.25rem, 4vw, 5rem);
+    padding-right: clamp(1.25rem, 4vw, 5rem);
+  }
+
+  /* Narrow content column for text-heavy sections */
+  .content-col {
+    width: 100%;
+    max-width: 860px;
+  }
+}
+
+/* Leaderboard utilities */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(26,26,26,0.12);
+  border-radius: 2px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(26,26,26,0.22);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none !important;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body[data-heavy-fx="off"] [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Legacy page-col — kept for any admin/stage pages that still use it */
+.page-col {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+@media (min-width: 760px) {
+  .page-col {
+    max-width: 60% !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-col {
+    max-width: min(54%, 720px) !important;
+  }
+}

@@ -1,0 +1,221 @@
+/* ─────────────────────────────────────────────────────────────
+   /leaderboard theme — Black / Burgundy / White "Top Performers"
+   ─────────────────────────────────────────────────────────────
+   Scoped entirely under .lb-theme so the rest of the site (which
+   uses the cream/serif brand tokens in ../globals.css) is untouched.
+   This file is imported only by src/app/leaderboard/page.tsx, so
+   webpack scopes it to that route's chunk — it never loads on /,
+   /admin, /register, etc. Swap the palette by editing the
+   variables below; nothing else needs to change. */
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Inter:wght@400;500;600;700&display=swap');
+
+.lb-theme {
+  --lb-black: #000000;
+  --lb-ink: #0B0B0C;
+  --lb-burgundy: #6D001A;
+  --lb-white: #FFFFFF;
+
+  --lb-burgundy-900: #2A0009;
+  --lb-burgundy-700: #4A0012;
+  --lb-burgundy-500: #8F0F2E;
+  --lb-burgundy-300: #C2415D;
+  --lb-rose-200: #EBA9B8;
+  --lb-grey-400: #9A9AA3;
+  --lb-line: #2A1A1E;
+
+  --lb-live: #FF2D55;
+
+  /* Podium materials */
+  --lb-gold-grad: linear-gradient(145deg, #B3123A 0%, #6D001A 55%, #2A0009 100%);
+  --lb-pearl-grad: linear-gradient(145deg, #FFFFFF 0%, #E4E4E8 55%, #B8B8C0 100%);
+  --lb-graphite-grad: linear-gradient(145deg, #3A3A3F 0%, #17171A 55%, #0A0A0B 100%);
+
+  background: var(--lb-black);
+  color: var(--lb-white);
+  font-family: "Inter", sans-serif;
+  font-variant-numeric: tabular-nums;
+  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+}
+
+.lb-theme * {
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-display {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 0.95;
+}
+
+.lb-display-800 {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+/* ── Background: burgundy glow + silk folds + grain, all CSS/SVG ── */
+.lb-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--lb-black);
+}
+
+.lb-bg-glow {
+  position: absolute;
+  top: -10%;
+  left: 50%;
+  width: 75vw;
+  height: 45vh;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, var(--lb-burgundy) 0%, var(--lb-burgundy-900) 45%, transparent 75%);
+  filter: blur(10px);
+  opacity: 0.8;
+}
+
+.lb-bg-silk {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  background:
+    conic-gradient(from 120deg at 20% 10%, transparent 0deg, #fff 40deg, transparent 90deg),
+    conic-gradient(from 260deg at 80% 30%, transparent 0deg, #fff 30deg, transparent 80deg),
+    linear-gradient(115deg, transparent 30%, #fff 48%, transparent 66%);
+  mix-blend-mode: overlay;
+}
+
+.lb-bg-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* Ghost edge words (desktop only) */
+.lb-ghost-word {
+  position: fixed;
+  z-index: 0;
+  writing-mode: vertical-rl;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 900;
+  font-size: 7vw;
+  color: rgba(255, 255, 255, 0.05);
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+  .lb-ghost-word {
+    display: none;
+  }
+}
+
+/* ── Motion ── */
+@keyframes lb-shine-sweep {
+  0% { transform: translate(-130%, -130%) rotate(25deg); }
+  100% { transform: translate(130%, 130%) rotate(25deg); }
+}
+.lb-shine {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 60%;
+  height: 220%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: lb-shine-sweep 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes lb-pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+.lb-live-dot {
+  animation: lb-pulse-dot 1.4s ease-in-out infinite;
+}
+
+@keyframes lb-flash {
+  0% { box-shadow: 0 0 0 0 rgba(143, 15, 46, 0); }
+  30% { box-shadow: 0 0 0 6px rgba(143, 15, 46, 0.6); }
+  100% { box-shadow: 0 0 0 0 rgba(143, 15, 46, 0); }
+}
+.lb-flash {
+  animation: lb-flash 1.1s ease-out;
+}
+
+@keyframes lb-confetti-fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(540deg); opacity: 0; }
+}
+.lb-confetti-piece {
+  position: fixed;
+  top: 0;
+  z-index: 50;
+  animation: lb-confetti-fall linear forwards;
+  pointer-events: none;
+}
+
+@keyframes lb-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.lb-skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: lb-shimmer 1.8s ease-in-out infinite;
+}
+
+.lb-tilt {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
+  transform-style: preserve-3d;
+}
+.lb-tilt:hover,
+.lb-tilt:focus-visible {
+  transform: perspective(900px) rotateX(4deg) rotateY(-4deg) translateY(-4px);
+}
+
+.lb-row {
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.lb-row:hover,
+.lb-row:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--lb-burgundy-500) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-shine,
+  .lb-live-dot,
+  .lb-flash,
+  .lb-confetti-piece,
+  .lb-skeleton {
+    animation: none !important;
+  }
+  .lb-tilt,
+  .lb-tilt:hover,
+  .lb-tilt:focus-visible {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+.lb-theme ::-webkit-scrollbar {
+  width: 6px;
+}
+.lb-theme ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.lb-theme ::-webkit-scrollbar-thumb {
+  background: var(--lb-burgundy-700);
+  border-radius: 3px;
+}
