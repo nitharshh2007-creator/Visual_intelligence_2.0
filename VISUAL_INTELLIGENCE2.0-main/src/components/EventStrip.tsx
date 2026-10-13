@@ -25,7 +25,8 @@ export default function EventStrip() {
   return (
     <aside
       aria-label="Event summary bar"
-      className={`fixed top-[58px] md:top-[72px] left-0 right-0 z-40 h-12 md:h-14 bg-[#050505] text-brand-bg border-b border-brand-fg/20 transition-all duration-300 ease-[cubic-bezier(0.76,0,0.24,1)] ${
+      inert={!visible}
+      className={`fixed top-[76px] left-0 right-0 z-40 h-12 md:h-14 bg-[#050505] text-brand-bg border-b border-brand-fg/20 transition-all duration-300 ease-[cubic-bezier(0.76,0,0.24,1)] ${
         visible
           ? "translate-y-0 opacity-100 pointer-events-auto shadow-2xl"
           : "-translate-y-2 opacity-0 pointer-events-none"
@@ -33,8 +34,8 @@ export default function EventStrip() {
     >
       <div className="max-w-7xl mx-auto h-full px-6 lg:px-12 flex items-center justify-between font-sans text-xs uppercase tracking-[0.18em]">
         <div className="flex items-center gap-3">
-          <span className="w-2 h-2 rounded-full bg-brand-accent animate-pulse" />
-          <span className="hidden sm:inline">14 OCT · 2:00 – 4:00 PM · DSCS GALLERY HALL</span>
+          <span className="w-2 h-2 rounded-full bg-brand-accent" />
+          <span className="hidden sm:inline">14 OCT · 2:00 – 4:00 PM · FOOD PROCESSING GALLERY HALL</span>
           <span className="sm:hidden">14 OCT · 2 PM</span>
         </div>
 

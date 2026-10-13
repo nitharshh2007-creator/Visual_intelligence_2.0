@@ -1,0 +1,70 @@
+-- ─────────────────────────────────────────────────────────────
+-- Migration 0031: Official Game Rules, Descriptions & Shortlisting
+-- ─────────────────────────────────────────────────────────────
+-- Updates the official copy, tagline, overview, how-to-play, rules,
+-- and required outputs for all 4 levels:
+-- Level 1: Cyber Styling
+-- Level 2: BugX Hacker
+-- Level 3: Prompt Rumble
+-- Level 4: Prompt Charades
+--
+-- Preserves existing scoring rubrics, 1:1 cyber theme allocations,
+-- team codes, and stage access controls.
+-
+-update stages set
+-  name = 'CYBER STYLING',
+-  hook = 'One HTML file. One random theme. Your creativity.',
+-  overview_md = 'All 38 participating teams receive the same HTML file. Each team is assigned a random theme and must transform the provided webpage according to its assigned theme using generative AI.',
+-  rules_md = 'All teams begin with the same HTML file.
+-Each team must follow its own assigned theme.
+-The completed webpage must be demonstrated when requested.
+-Submit your work through the official Google Form.',
+-  roles_md = 'Prompt Lead, Code Integrator, Designer, Submitter',
+-  tests = array['Generative AI', 'Web Design', 'Theme Adaptation', 'HTML/CSS'],
+-  phases = '[{"name": "Receive HTML & Theme", "minutes": 3}, {"name": "Open Environment", "minutes": 2}, {"name": "Redesign with AI", "minutes": 12}, {"name": "Polish & Refine", "minutes": 5}, {"name": "Demo & Submit", "minutes": 3}]'::jsonb,
+-  submission_config = '{"required_output": "A redesigned HTML webpage that reflects the team''s assigned theme."}'::jsonb
+-where slug = 'cyber-styling';
+-
+-update stages set
+-  name = 'BUGX HACKER',
+-  hook = 'Investigate the files. Discover the password. Find the correct answer.',
+-  overview_md = 'Teams receive a ZIP archive containing 10 files consisting of images, code files, and other text-based materials. Participants must investigate these files to identify the correct password. The challenge also contains five PDFs. Two PDFs contain answer-related content, while the remaining three contain meme content without the required answer.',
+-  rules_md = 'Work with the official files provided for the challenge.
+-Investigate the supplied materials carefully.
+-Identify the relevant PDF rather than assuming every PDF contains an answer.
+-Follow the submission instructions provided in the challenge materials.',
+-  roles_md = 'File Investigator, Code Inspector, Logic Analyst, Password Solver',
+-  tests = array['File Investigation', 'Code Inspection', 'Logic & Deductions', 'Bug Hunting'],
+-  phases = '[{"name": "Download & Extract", "minutes": 3}, {"name": "Inspect Materials", "minutes": 10}, {"name": "Discover Password", "minutes": 7}, {"name": "Inspect PDFs", "minutes": 5}, {"name": "Submit Form", "minutes": 5}]'::jsonb,
+-  submission_config = '{"required_output": "Identify the correct answer and submit the required information through the official Google Form."}'::jsonb
+-where slug = 'bugx-hacker';
+-
+-update stages set
+-  name = 'PROMPT RUMBLE',
+-  hook = 'Five images. Five words. One 30-second AI advertisement.',
+-  overview_md = 'Teams receive a ZIP file containing 10 images and 10 words. They must select any five images and any five words and creatively combine the selected assets into a 30-second AI-generated advertisement.',
+-  rules_md = 'Select exactly five images and five words.
+-Use all five selected images and all five selected words in the advertisement.
+-The final advertisement must be 30 seconds long.
+-AI tools may be used for the creation process.
+-Follow the official Google Form submission instructions.',
+-  roles_md = 'Creative Director, Asset Selector, Prompt Engineer, Video Producer',
+-  tests = array['Asset Synthesis', 'Multimodal GenAI', 'Creative Scripting', 'Video Production'],
+-  phases = '[{"name": "Asset Selection", "minutes": 5}, {"name": "Storyboarding", "minutes": 5}, {"name": "AI Generation", "minutes": 15}, {"name": "Video Assembly", "minutes": 10}, {"name": "Review & Submit", "minutes": 5}]'::jsonb,
+-  submission_config = '{"required_output": "A completed 30-second AI-generated advertisement submitted through the official Google Form."}'::jsonb
+-where slug = 'prompt-rumble';
+-
+-update stages set
+-  name = 'PROMPT CHARADES',
+-  hook = 'Observe. Describe. Prompt. Recreate.',
+-  overview_md = 'The shortlisted teams participate in a collaborative image-recreation challenge involving three team members with different responsibilities. One participant sees the reference image and describes it to two teammates. Those two describers communicate the image details to a separate prompter, who uses generative AI to recreate the image.',
+-  rules_md = 'Only shortlisted teams may participate.
+-The observer sees the reference image; the prompter must not see it directly.
+-Team members must communicate through the permitted process.
+-Do not reveal the reference image publicly.
+-Follow the organizers'' instructions and official submission process.',
+-  roles_md = 'Observer, Two Describers, Prompter',
+-  tests = array['Verbal Communication', 'Visual Interpretation', 'AI Prompt Engineering', 'Image Recreation'],
+-  phases = '[{"name": "Observation", "minutes": 3}, {"name": "Description", "minutes": 5}, {"name": "Relay to Prompter", "minutes": 4}, {"name": "Prompt & Recreate", "minutes": 8}, {"name": "Submit & Evaluate", "minutes": 5}]'::jsonb,
+-  submission_config = '{"required_output": "An AI-generated image that recreates the reference image as closely as possible, submitted through the official Google Form."}'::jsonb
+-where slug = 'prompt-charades';

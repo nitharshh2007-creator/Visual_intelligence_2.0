@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovaStudio — Digital Experience & Design</title>
+  <style>
+    /* ─── RESET & NEUTRAL BASE ─── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #ffffff;
+      --bg-alt: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --border-focus: #94a3b8;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-sub: #475569;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-text: #ffffff;
+      --secondary-bg: #f1f5f9;
+      --secondary-text: #334155;
+      --secondary-hover: #e2e8f0;
+      --radius: 10px;
+      --radius-sm: 6px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    /* ─── LAYOUT CONTAINERS ─── */
+    .container {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    section {
+      padding: 80px 0;
+    }
+
+    /* ─── NAVIGATION ─── */
+    header {
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 50;
+    }
+
+    .nav-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary-text);
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text-sub);
+      transition: color 0.15s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-main);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* ─── BUTTONS ─── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      font-size: 0.925rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      outline: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primary-text);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--secondary-bg);
+      color: var(--secondary-text);
+      border-color: var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--secondary-hover);
+      color: var(--text-main);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-main);
+      border-color: var(--border);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--border-focus);
+      background: var(--bg-alt);
+    }
+
+    .btn-sm {
+      padding: 7px 14px;
+      font-size: 0.85rem;
+    }
+
+    /* ─── HERO SECTION ─── */
+    .hero {
+      padding: 96px 0 80px;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 100%);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 5px 14px;
+      font-size: 0.825rem;
+      font-weight: 600;
+      border-radius: 9999px;
+      background: var(--secondary-bg);
+      color: var(--secondary-text);
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .hero-title {
+      font-size: 3.25rem;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: var(--text-main);
+      max-width: 840px;
+      margin: 0 auto 20px;
+    }
+
+    .hero-desc {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 640px;
+      margin: 0 auto 36px;
+      line-height: 1.65;
+    }
+
+    .hero-cta {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    /* ─── METRICS STRIP ─── */
+    .metrics {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      padding: 32px 0;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      text-align: center;
+    }
+
+    .metric-value {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+    }
+
+    .metric-label {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    /* ─── SECTION HEADERS ─── */
+    .section-head {
+      text-align: center;
+      max-width: 640px;
+      margin: 0 auto 56px;
+    }
+
+    .section-tag {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 2.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      margin-bottom: 12px;
+    }
+
+    .section-desc {
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    /* ─── CARDS & FEATURES ─── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      box-shadow: var(--shadow);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+      border-color: var(--border-focus);
+    }
+
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      background: var(--secondary-bg);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      margin-bottom: 20px;
+      color: var(--text-main);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 10px;
+    }
+
+    .card-text {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 20px;
+      flex-grow: 1;
+    }
+
+    .card-link {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ─── SHOWCASE SPLIT ─── */
+    .split-section {
+      background: var(--bg-alt);
+    }
+
+    .split-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+    }
+
+    .split-content .section-title {
+      text-align: left;
+    }
+
+    .split-desc {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+
+    .checklist {
+      list-style: none;
+      margin-bottom: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .checklist li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text-sub);
+    }
+
+    .check-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--secondary-bg);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .preview-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .preview-window-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .window-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+
+    .preview-body {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .preview-row {
+      height: 16px;
+      background: var(--secondary-bg);
+      border-radius: 4px;
+      width: 100%;
+    }
+
+    .preview-row.short {
+      width: 60%;
+    }
+
+    .preview-row.tall {
+      height: 120px;
+    }
+
+    /* ─── CALL TO ACTION BANNER ─── */
+    .cta-banner {
+      background: var(--text-main);
+      color: #ffffff;
+      border-radius: var(--radius);
+      padding: 64px 48px;
+      text-align: center;
+    }
+
+    .cta-banner h2 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      margin-bottom: 14px;
+      letter-spacing: -0.02em;
+    }
+
+    .cta-banner p {
+      font-size: 1.05rem;
+      color: #94a3b8;
+      max-width: 580px;
+      margin: 0 auto 32px;
+    }
+
+    .cta-banner .btn-primary {
+      background: #ffffff;
+      color: var(--text-main);
+    }
+
+    .cta-banner .btn-primary:hover {
+      background: #f1f5f9;
+    }
+
+    .cta-banner .btn-outline {
+      border-color: #334155;
+      color: #ffffff;
+    }
+
+    .cta-banner .btn-outline:hover {
+      border-color: #64748b;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      padding: 64px 0 32px;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 48px;
+      margin-bottom: 56px;
+    }
+
+    .footer-about p {
+      margin-top: 12px;
+      font-size: 0.925rem;
+      color: var(--text-muted);
+      max-width: 320px;
+    }
+
+    .footer-col h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 18px;
+      color: var(--text-main);
+    }
+
+    .footer-col ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .footer-col a {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      transition: color 0.15s ease;
+    }
+
+    .footer-col a:hover {
+      color: var(--text-main);
+    }
+
+    .footer-bottom {
+      border-top: 1px solid var(--border);
+      padding-top: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 992px) {
+      .hero-title { font-size: 2.75rem; }
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .split-grid { grid-template-columns: 1fr; gap: 40px; }
+      .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
+    }
+
+    @media (max-width: 640px) {
+      .hero-title { font-size: 2.15rem; }
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; gap: 12px; text-align: center; }
+      .cta-banner { padding: 40px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="container nav-wrap">
+      <a href="#" class="brand">
+        <span class="brand-mark">N</span>
+        <span>NovaStudio</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#services">Services</a></li>
+        <li><a href="#solutions">Solutions</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <button class="btn btn-outline btn-sm" id="btn-login" type="button">Sign In</button>
+        <button class="btn btn-primary btn-sm" id="btn-get-started" type="button">Get Started</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <span class="badge">Next Generation Platforms</span>
+      <h1 class="hero-title">Designing intelligent solutions for modern digital builders</h1>
+      <p class="hero-desc">
+        A clean, modular architectural system crafted to support scalable applications, 
+        delightful user interactions, and robust performance across every screen.
+      </p>
+      <div class="hero-cta">
+        <button class="btn btn-primary" id="btn-explore" type="button">Explore Platform</button>
+        <button class="btn btn-secondary" id="btn-documentation" type="button">View Documentation</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Key Metrics Strip -->
+  <div class="metrics">
+    <div class="container">
+      <div class="metrics-grid">
+        <div class="metric-item">
+          <div class="metric-value">99.9%</div>
+          <div class="metric-label">System Reliability</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-value">120+</div>
+          <div class="metric-label">Active Modules</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-value">4.9/5</div>
+          <div class="metric-label">User Satisfaction</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-value">24/7</div>
+          <div class="metric-label">Global Monitoring</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Featured Services / Pillars -->
+  <section id="services">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-tag">Core Capabilities</div>
+        <h2 class="section-title">Built with intention and precision</h2>
+        <p class="section-desc">
+          Structured foundation blocks designed to easily adapt and scale with your project requirements.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <!-- Card 1 -->
+        <article class="card">
+          <div class="card-icon">⚡</div>
+          <h3 class="card-title">Performance Engine</h3>
+          <p class="card-text">
+            Optimized execution pipelines that guarantee swift load speeds, lightweight bundle weights, and instant interaction responses.
+          </p>
+          <a href="#" class="card-link">Learn more &rarr;</a>
+        </article>
+
+        <!-- Card 2 -->
+        <article class="card">
+          <div class="card-icon">🧩</div>
+          <h3 class="card-title">Modular Architecture</h3>
+          <p class="card-text">
+            Component-driven design patterns allowing seamless extension, clean reusability, and maintainable styling systems.
+          </p>
+          <a href="#" class="card-link">Explore components &rarr;</a>
+        </article>
+
+        <!-- Card 3 -->
+        <article class="card">
+          <div class="card-icon">🛡️</div>
+          <h3 class="card-title">Secure & Compliant</h3>
+          <p class="card-text">
+            Hardened default configurations ensuring accessibility standards, strict data protection, and enterprise-grade reliability.
+          </p>
+          <a href="#" class="card-link">Security whitepaper &rarr;</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Showcase / Split Section -->
+  <section class="split-section" id="solutions">
+    <div class="container">
+      <div class="split-grid">
+        <div class="split-content">
+          <div class="section-tag">Unified Framework</div>
+          <h2 class="section-title">Everything you need in a single cohesive workspace</h2>
+          <p class="split-desc">
+            Organize complex workflows without the friction. Our structured layouts provide clear information hierarchy 
+            and effortless navigation for teams of any size.
+          </p>
+          <ul class="checklist">
+            <li>
+              <span class="check-icon">&#10003;</span>
+              <span>Semantic markup adhering to HTML5 accessibility best practices</span>
+            </li>
+            <li>
+              <span class="check-icon">&#10003;</span>
+              <span>Flexible CSS grid and flexbox containers adaptable to any theme</span>
+            </li>
+            <li>
+              <span class="check-icon">&#10003;</span>
+              <span>Lightweight footprint without bulky external script dependencies</span>
+            </li>
+          </ul>
+          <button class="btn btn-primary" id="btn-discover" type="button">Discover Solutions</button>
+        </div>
+
+        <div class="preview-box">
+          <div class="preview-window-head">
+            <span class="window-dot"></span>
+            <span class="window-dot"></span>
+            <span class="window-dot"></span>
+          </div>
+          <div class="preview-body">
+            <div class="preview-row short"></div>
+            <div class="preview-row tall"></div>
+            <div class="preview-row"></div>
+            <div class="preview-row short"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action Banner -->
+  <section id="contact">
+    <div class="container">
+      <div class="cta-banner">
+        <h2>Ready to build something extraordinary?</h2>
+        <p>
+          Start with this solid foundation and adapt the visual identity to express your team's unique vision and creative goals.
+        </p>
+        <div class="hero-cta">
+          <button class="btn btn-primary" id="btn-cta-launch" type="button">Get Started Today</button>
+          <button class="btn btn-outline" id="btn-cta-contact" type="button">Contact Team</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-about">
+          <div class="brand">
+            <span class="brand-mark">N</span>
+            <span>NovaStudio</span>
+          </div>
+          <p>
+            A clean, theme-neutral starter architecture built for creative experimentation, web development, and generative UI transformations.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <ul>
+            <li><a href="#">Architecture</a></li>
+            <li><a href="#">Design System</a></li>
+            <li><a href="#">Performance</a></li>
+            <li><a href="#">Changelog</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="#">Documentation</a></li>
+            <li><a href="#">Guides & Tutorials</a></li>
+            <li><a href="#">API Reference</a></li>
+            <li><a href="#">Community</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="#">About Us</a></li>
+            <li><a href="#">Careers</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Terms of Service</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2026 NovaStudio. All rights reserved.</p>
+        <p>Built for Round 1 // Cyber Styling</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Minimal interaction script for buttons
+    document.querySelectorAll("button").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        console.log("Action triggered on button:", btn.textContent.trim());
+      });
+    });
+  </script>
+</body>
+</html>

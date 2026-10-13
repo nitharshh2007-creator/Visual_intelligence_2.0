@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Team, ActivityEvent, EventState, ConnectionStatus, LeaderboardData, StageStatus, LeaderboardVisibility } from "@/lib/types";
 import { TEAM_MAX } from "@/data/event";
-import { getSupabaseClient, isSupabaseConfigured, type LeaderboardViewRow, type EventStateRow, type ActivityRow, type LeaderboardPayload } from "@/lib/supabase";
+import { getSupabaseClient, isSupabaseConfigured, type LeaderboardViewRow, type EventStateRow, type ActivityRow, type LeaderboardPayload, type StageAccessEntry } from "@/lib/supabase";
 
 const STAGE_NAMES = ["Cyber Styling", "BugX Hacker", "Prompt Rumble", "Prompt Charades"];
 const POLL_MS = 10000; // fallback if the Realtime socket drops
@@ -230,11 +230,12 @@ function mapViewRowToTeam(row: LeaderboardViewRow, prevRank: number | undefined,
   };
 }
 
-function mapEventStateRow(row: EventStateRow): EventState {
+function mapEventStateRow(row: EventStateRow, stages: StageAccessEntry[]): EventState {
   const currentStage = Math.max(1, row.current_stage); // UI isn't designed for "stage 0" (pre-event)
   const stageStatuses: StageStatus[] = [1, 2, 3, 4].map((stage) => {
-    if (stage < currentStage) return "finished";
-    if (stage === currentStage) return row.status === "live" || row.status === "paused" ? "live" : "upcoming";
+    const lifecycleStatus = stages.find((entry) => entry.stage === stage)?.stage_status;
+    if (lifecycleStatus === "ended" || stage < currentStage) return "finished";
+    if (lifecycleStatus === "live") return "live";
     return "upcoming";
   });
   return {
@@ -334,9 +335,16 @@ function useRealLeaderboard(projectorToken?: string | null, showEliminated?: boo
   async function fetchEventState() {
     if (!isSupabaseConfigured()) return;
     const supabase = getSupabaseClient();
-    const { data, error } = await supabase.from("event_state").select("*").eq("id" as never, 1).maybeSingle();
+    const [{ data, error }, { data: access, error: accessError }] = await Promise.all([
+      supabase.from("event_state").select("*").eq("id" as never, 1).maybeSingle(),
+      supabase.rpc("get_stage_access", { p_code: null, p_reg_no: null }),
+    ]);
     if (error || !data) return;
-    setEventState(mapEventStateRow(data as EventStateRow));
+    if (accessError || !access) {
+      console.error("Failed to load stage lifecycle for the leaderboard", accessError);
+      return;
+    }
+    setEventState(mapEventStateRow(data as EventStateRow, access.stages));
   }
 
   async function fetchAll() {

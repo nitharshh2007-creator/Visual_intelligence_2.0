@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 
 const STEPS = [
-  { num: "1", title: "Form a team of 4–5" },
+  { num: "1", title: "Form a team of 4" },
   { num: "2", title: "Register and get your team code" },
   { num: "3", title: "Join on the day with the code" },
 ];

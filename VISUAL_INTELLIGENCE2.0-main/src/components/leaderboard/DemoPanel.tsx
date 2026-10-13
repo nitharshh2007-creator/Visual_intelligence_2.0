@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { X } from "lucide-react";
 import type { LeaderboardData, Team, ActivityEvent } from "@/lib/types";
 
 // Dev-only panel (mounted by page.tsx only when ?demo=1). Everything
@@ -130,8 +131,8 @@ export default function DemoPanel({ current, onApply, isOverridden }: Props) {
             <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--lb-rose-200)" }}>
               Demo Panel
             </span>
-            <button onClick={() => setOpen(false)} className="text-xs" style={{ color: "var(--lb-grey-400)" }}>
-              ✕
+            <button onClick={() => setOpen(false)} aria-label="Close" style={{ color: "var(--lb-grey-400)" }}>
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="grid grid-cols-2 gap-1.5">

@@ -1,10 +1,11 @@
 // Team size configuration — the single source of truth for every
 // "members per team" reference across config, UI copy, the registration
 // lobby, and the DB trigger/RPCs in supabase/migrations/0002_*.sql.
-// Keep these two numbers in sync with the `team_max`/team_min checks
-// hardcoded in that migration's trigger and RPCs.
-export const TEAM_MAX = 5; // max members per team (hard DB cap)
+// Keep these two numbers in sync with the team-size trigger/RPCs in the
+// latest Supabase migration.
+export const TEAM_MAX = 4; // max members per team (hard DB cap)
 export const TEAM_MIN = 4; // min members per team to be eligible ("ready")
+export const TEAM_SIZE_LABEL = TEAM_MIN === TEAM_MAX ? `${TEAM_MAX}` : `${TEAM_MIN}–${TEAM_MAX}`;
 
 // Registration closes at this instant (ISO 8601, with timezone).
 // Mirrors event_state.registration_deadline in the real backend; the mock
@@ -51,15 +52,15 @@ export const REVEAL_STAGE_NAMES_BEFORE_UNLOCK = false;
 
 export const eventDetails = {
   title: "VISUAL INTELLIGENCE 2.0",
-  tagline: "DUM SARAT using Prompt Engineering",
+  tagline: "Prompt Engineering Challenge",
   subtitle: "4 Stages of Chaos",
   date: "14 Oct (Wednesday)",
   time: "2:00 PM – 4:00 PM",
-  venue: "DSCS Gallery Hall",
-  eligibility: `First-year students only. Teams of ${TEAM_MIN}–${TEAM_MAX} members.`,
+  venue: "Food Processing Gallery Hall",
+  eligibility: `First-year students only. Teams of ${TEAM_SIZE_LABEL} members.`,
   registration: "Free",
   participation: "E-certificate issued",
-  organizers: "IEEE Computer Society · DSCS"
+  organizers: "IEEE Computer Society · CSE"
 };
 
 // Anti-leak (Phase 3 Section B): stage NAMES, hooks, rules, roles and

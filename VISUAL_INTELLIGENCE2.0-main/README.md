@@ -63,6 +63,13 @@ Open your Supabase project's **SQL Editor** and run every file in `supabase/migr
 | 0013 | `0013_bugx_vault.sql` | BugX password verification (hash + check, server-side) |
 | 0014 | `0014_registration_manual_close.sql` | Manual "close registration now" switch |
 | 0015 | `0015_stage_copy_update.sql` | **Event-specific wording for the 4 stages — see step 6, you'll likely want to edit or skip this one** |
+| 0016 | `0016_realtime_replica_identity.sql` | Sets `REPLICA IDENTITY FULL` on `teams`/`members` so Realtime UPDATE/DELETE filters work correctly |
+| 0017 | `0017_stage_end_cutoff_scoring.sql` | Broadcasts ended-stage state, ranks cutoffs using only scores through that stage, and seeds the Cyber Styling/Prompt Charades rubrics |
+| 0018 | `0018_four_member_teams.sql` | Enforces the new four-member team cap and updates team-status logic |
+| 0019 | `0019_fix_registration_bugs.sql` | Fixes team registration edge cases |
+| 0020 | `0020_shortlisting.sql` | Configurable preliminary cutoff, score validation, and manual Stage 3/4 approval |
+| 0021 | `0021_shortlist_enforcement.sql` | Atomic preliminary scoring and admin scoring/assignment enforcement for shortlisted teams |
+| 0022 | `0022_cyber_theme_assignments.sql` | Official 38-theme UI catalog and randomized, persistent Cyber Styling team assignments |
 
 Paste each file's full contents into the SQL Editor and run it, then move to the next. If something fails partway through a file, fix the reported error and re-run that **same** file before moving on — don't skip ahead.
 
@@ -88,7 +95,7 @@ There's no admin UI for editing this content by design (the spec this was built 
 
 **Option B — different games entirely, different number of stages.** This needs real code changes, not just config: the app's logic (cutoff math, the admin stepper, `StageProgressRail`, the `stage between 1 and 4` database constraint, BugX's slug-specific password panel) is written around exactly 4 stages with `bugx-hacker` specifically having the password-vault feature. Reusing the 4-stage shell with your own content (Option A) is almost always less work than rewriting this.
 
-**Rebranding:** event name/tagline/venue/date live in `src/data/event.ts` (`eventDetails`, near the top of the file — also `TEAM_MIN`/`TEAM_MAX` if your team size differs from 4-5, and `REGISTRATION_DEADLINE_ISO`). Logos are plain files in `public/logos/` referenced from `src/components/Navbar.tsx` — swap the files (same filenames, or update the `<img src>` paths) and the favicon at `src/app/favicon.ico`.
+**Rebranding:** event name/tagline/venue/date live in `src/data/event.ts` (`eventDetails`, near the top of the file — also `TEAM_MIN`/`TEAM_MAX` if your team size differs from four, and `REGISTRATION_DEADLINE_ISO`). Logos are plain files in `public/logos/` referenced from `src/components/Navbar.tsx` — swap the files (same filenames, or update the `<img src>` paths) and the favicon at `src/app/favicon.ico`.
 
 ## 7. Create your admin account
 
@@ -123,7 +130,7 @@ Every future `git push` to your main branch redeploys automatically.
 
 ## 10. Before you open registration — a checklist
 
-- [ ] All 15 migrations ran without error (step 5).
+- [ ] All migrations through `0022_cyber_theme_assignments.sql` ran without error (step 5).
 - [ ] Your admin account can sign in at `/admin/login` (step 7).
 - [ ] Stage wording matches your event, not the original organizers' (step 6) — check `/stages` while signed in as admin.
 - [ ] `src/data/event.ts`'s `REGISTRATION_DEADLINE_ISO` is set to your real deadline.
@@ -231,7 +238,7 @@ Adds `supabase/migrations/0007_stage_release.sql` and `0010_stage_override_rev.s
 - [ ] With `released_stage = 0`, every stage shows `LOCKED` for every team via `get_stage_access`, regardless of completion state.
 - [ ] Admin clicks "Release" on Stage 2 in the Event Flow stepper → a team that completed Stage 1 flips to `RELEASED` for Stage 2 within ~10s on an already-open `/stages` tab, with no manual refresh (Realtime on `event_state`, 10s poll fallback — see `useStageGate`). A team that has *not* completed Stage 1 stays `LOCKED` after the same release.
 - [ ] Admin grants a per-team override (`admin_set_team_stage_override`) for a team stuck on `LOCKED` → that team's `/stages` page updates to `RELEASED`/`LIVE` within the same ~10s window, without the team reloading. (This is what `0010_stage_override_rev.sql` fixes — overrides didn't bump `leaderboard_rev` before, so this update only reached the 10s poll on `/leaderboard`, never the stage-gate hook at all.)
-- [ ] Admin ends Stage 1 (`admin_end_stage`) before a team has submitted → that team's state for Stage 1 becomes `COMPLETED` (ended-by-host), not stuck on `LIVE` forever; the team is never blocked by its own lateness from seeing Stage 2 once it's released.
+- [ ] Admin ends Stage 1 (`admin_end_stage`) before a team has submitted → every open student stage page shows "Stage Ended" and closed submissions; the team's state becomes `COMPLETED` (ended-by-host), not stuck on `LIVE` forever.
 - [ ] `get_stage_content`/`submit_stage_result` for a `LOCKED` or `RELEASED` (not yet `LIVE`) stage both refuse server-side (`VI021`/`VI022`) even if called directly with a valid team code/reg no. — never just a client-side gate.
 - [ ] A signed-out visitor calling `get_stage_access()` with no code sees only released stage numbers; names stay hidden unless `admin_set_reveal_stage_names(true)` has been called (default `false`).
 - [ ] Two admins pressing "Release" on the same stage at the same instant don't corrupt `stage_progress` — the second call is a no-op (`status = 'released'` already), not a duplicate row or an error.
@@ -241,12 +248,14 @@ Adds `supabase/migrations/0007_stage_release.sql` and `0010_stage_override_rev.s
 Adds `supabase/migrations/0008_qualification_cutoffs.sql` on top of 0001-0007, 0010 (not edited). Run it in the SQL editor before testing. No new env vars; `CUTOFFS`/`ADVANCE_RULE`/`TIE_AT_CUTOFF` live in `src/data/event.ts`.
 
 - [ ] With 11 `ready` teams and `{ afterStage: 2, keep: 'half' }`, `admin_preview_cutoff(2)` returns `keep = 6` (`ceil(11 / 2)`), the ranked list, and the cut line between rank 6 and 7.
-- [ ] Create a tie at rank 6/7 (equal cumulative scores) → the preview's `tie_warning` is `true` and both tied teams default to `would_keep = true`; using the Cutoff dialog's include/exclude toggles to break the tie manually changes the final kept count shown before applying.
+- [ ] Give teams scores in later stages, then preview the cutoff after Stage 2 → the preview totals/ranks include only Stage 1 and Stage 2 scores.
+- [ ] Create a tie at rank 6/7 (equal cumulative scores) → the preview's `tie_warning` is `true` and tied teams default to checked; the judge can select/deselect each team, and only checked teams advance when applied.
 - [ ] `admin_apply_cutoff` is disabled (button greyed out) until Stage 2 has actually ended; once applied, it's audited and snapshots `qualifiers` — a later `admin_set_score` correction does not silently change who qualified.
-- [ ] After applying, the public `/leaderboard` (`get_leaderboard`, non-admin) shows only the 6 qualifiers and the round badge reads "AFTER STAGE 2 · TOP HALF"; an eliminated team's own `/stages` page shows "You finished #N of 11" with its score breakdown, not the stage list.
+- [ ] After applying, the public `/leaderboard` (`get_leaderboard`, non-admin) shows only the checked qualifiers and the round badge includes the stage, configured target, and actual advancing count; an eliminated team's own `/stages` page shows "You finished #N of 11" with its score breakdown, not the stage list.
 - [ ] With `ADVANCE_RULE = 'eliminate'` (default), an eliminated team's `get_stage_content` call for Stage 3 is refused (`VI020` / `ELIMINATED`) even with a valid session. With `'display_only'`, the same team can still open Stage 3 content but stays off the public leaderboard.
 - [ ] `admin_undo_cutoff(2)` removes the Stage-2 qualifier snapshot and any later one (e.g. a Stage-3 cutoff applied on top of it) — all 11 teams reappear on the public leaderboard and eliminated teams regain access.
 - [ ] Admin's Event Flow "Per-Team Access" table always lists every team (including `ELIMINATED` ones) regardless of the cutoff filter — organizers never lose visibility, even without the `/leaderboard` "Show Eliminated Teams" toggle.
+- [ ] On `/admin/scoring`, Cyber Styling displays its five 100-point criteria and Prompt Charades displays both rounds; each round is scored out of 100 and the saved Prompt Charades leaderboard score is their average.
 
 ### Phase 3, Section B — Admin stage pages simplified + anti-leak
 
@@ -263,3 +272,19 @@ Covered by `StageProgressRail`/`StageLockCard` (`src/components/stages/`), rende
 - [ ] `/stages` shows all 4 stages as a progress rail; a team's own node reflects `locked`/`released`/`live`/`completed`/`eliminated` per `get_stage_access`, not just a flat list.
 - [ ] After submitting, a team sees "Stage N completed" with its submission summary and "Waiting for the host to release Stage N+1" — not a bare locked card indistinguishable from a stage it hasn't reached yet.
 - [ ] A stage ended by the host before a team submitted still shows that team's node as `completed` (ended), matching the Section C check above — lateness never blocks progression.
+
+### Stage 1/2 scoring and manual shortlisting
+
+Apply `supabase/migrations/0020_shortlisting.sql` followed by `supabase/migrations/0021_shortlist_enforcement.sql` to the Supabase project, after the preceding migrations. The first migration adds the 60/100 default cutoff, optional per-stage minimums, decision/audit fields, and the Stage 3/4 access gate. The second adds atomic preliminary-score saves and enforces shortlist approval for later-stage scoring and assignments. These SQL files are source migrations; do not assume they have run on an existing Supabase project.
+
+At `/admin/scoring`, Stage 1 and Stage 2 scores are persisted in the existing unique `(team_id, stage)` score rows. Combined score is derived only after both marks exist. Shortlisting is a separate admin decision: eligible teams do not gain later-stage access until explicitly approved. A below-cutoff approval requires a confirmation and is recorded as an override. Changing the cutoff recalculates eligibility without changing saved decisions. Stage 3/4 content, submission, scoring, and assignment operations check the current shortlist decision on the backend.
+
+### Cyber Styling team themes
+
+Run `supabase/migrations/0022_cyber_theme_assignments.sql` after migration 0021. The existing Cyber Styling showcase is available at `/cyber-styling.html`. Its official catalog contains the 38 requested UI themes and practical build instructions. It reads eligible team IDs and names using the existing registration rule (`ready`/`full`) and displays the theme catalog and assignments without exposing participant contact details. Theme pairing is randomized and committed atomically in Supabase by an admin-only RPC; refreshes and different devices read the saved mapping. Assignment requires exactly 38 eligible teams. If there are more than 38 eligible teams, the current event rules do not specify which 38 to select, so the operation is blocked rather than inventing a selection rule. An explicit admin-only reassign action requires confirmation and uses an assignment version to reject stale concurrent requests.
+
+- [ ] Verify a score of zero is retained as a completed mark, blank fields do not clear existing marks, and the combined score remains pending until both marks exist.
+- [ ] Verify below/equal/above-cutoff eligibility and optional stage minimums; update the cutoff and confirm saved decisions remain unchanged and conflicts are flagged for review.
+- [ ] Approve an eligible team and verify it can enter Stage 3/4 when released; reject or hold a team and verify stage content, submissions, and scoring are denied.
+- [ ] Confirm a below-cutoff override requires an explicit admin confirmation and sets the override indicator; a pending-score team cannot be approved.
+- [ ] Refresh `/admin/scoring` and verify marks and decisions persist; test score edits by an authenticated non-admin and direct RPC calls, which must be rejected.

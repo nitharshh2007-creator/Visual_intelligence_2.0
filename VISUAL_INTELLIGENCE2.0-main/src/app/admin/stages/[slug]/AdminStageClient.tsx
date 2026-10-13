@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Check, X, AlertTriangle } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
   adminGenerateStageAssignments,
   adminGetStageAssignments,
   adminSetTeamAssignment,
   adminGetTeams,
+  adminGetPreliminaryScores,
   adminSetBugxPassword,
   AdminError,
 } from "@/lib/admin";
@@ -23,7 +25,7 @@ interface StageRecord {
   rules_md?: string | null;
   roles_md?: string | null;
   phases?: { name: string; minutes: number; accepts_submission: boolean; releases: string[] }[] | null;
-  rubric?: { name: string; max_points?: number }[] | null;
+  rubric?: { name: string; max_points?: number; round?: number }[] | null;
 }
 interface StageAsset {
   id: string;
@@ -79,11 +81,20 @@ export default function AdminStageClient({
 
   async function loadAssignments() {
     try {
-      const [a, t] = await Promise.all([adminGetStageAssignments(stage.slug), adminGetTeams()]);
+      const [a, allTeams, preliminary] = await Promise.all([
+        adminGetStageAssignments(stage.slug),
+        adminGetTeams(),
+        stage.number >= 3 ? adminGetPreliminaryScores() : Promise.resolve(null),
+      ]);
+      const shortlistedIds = preliminary
+        ? new Set(preliminary.filter((row) => row.decision === "shortlisted").map((row) => row.team_id))
+        : null;
       setAssignments(a as unknown as Assignment[]);
-      setTeams(t.map((x) => ({ id: x.id, name: x.name })));
-    } catch {
-      // non-fatal
+      setTeams(allTeams
+        .filter((team) => shortlistedIds === null || shortlistedIds.has(team.id))
+        .map((team) => ({ id: team.id, name: team.name })));
+    } catch (e) {
+      flash(e instanceof AdminError ? e.message : "Could not load assignments", "error");
     }
   }
 
@@ -237,7 +248,7 @@ export default function AdminStageClient({
               : "bg-zinc-900 border-white/20 text-zinc-200"
           }`}
         >
-          <span>{toast.kind === "success" ? "✓" : toast.kind === "error" ? "⚠" : "•"}</span>
+          <span>{toast.kind === "success" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : toast.kind === "error" ? <AlertTriangle className="w-3.5 h-3.5 text-red-400" /> : "•"}</span>
           <span>{toast.msg}</span>
         </div>
       )}
@@ -354,8 +365,8 @@ export default function AdminStageClient({
                         onChange={(e) => updateAsset(idx, "kind", e.target.value)}
                         className="w-full p-2 rounded-lg bg-zinc-900 border border-white/10 text-white text-xs focus:outline-none focus:border-white/30"
                       >
-                        <option value="file" className="bg-zinc-900 text-white">📁 File Upload</option>
-                        <option value="text" className="bg-zinc-900 text-white">📝 Text / Prompt</option>
+                        <option value="file" className="bg-zinc-900 text-white">File Upload</option>
+                        <option value="text" className="bg-zinc-900 text-white">Text / Prompt</option>
                       </select>
                     </div>
 
@@ -380,8 +391,9 @@ export default function AdminStageClient({
                         onClick={() => removeAsset(idx)}
                         className="p-2 rounded-lg border border-white/[0.08] text-zinc-400 hover:text-red-400 hover:bg-white/[0.02] text-xs transition-colors w-full flex items-center justify-center cursor-pointer"
                         title="Remove"
+                        aria-label="Remove asset"
                       >
-                        ✕
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -535,7 +547,10 @@ export default function AdminStageClient({
         {activeTab === "Rubric" && (
           <div className="space-y-3 max-w-4xl">
             <p className="text-xs uppercase tracking-wider text-zinc-500 mb-3">
-              Scoring Criteria ({stage.rubric?.length || 0})
+              Scoring Criteria ({new Set(stage.rubric?.map((criterion) => criterion.name) ?? []).size}
+              {Math.max(1, ...(stage.rubric?.map((criterion) => criterion.round ?? 1) ?? [])) > 1
+                ? ` · ${Math.max(1, ...(stage.rubric?.map((criterion) => criterion.round ?? 1) ?? []))} rounds`
+                : ""})
             </p>
             <div className="space-y-2">
               {(stage.rubric || []).map((c, idx) => (
@@ -543,7 +558,12 @@ export default function AdminStageClient({
                   key={idx}
                   className="p-3.5 rounded-lg bg-black/30 border border-white/[0.06] flex items-center justify-between text-xs"
                 >
-                  <span className="text-zinc-200">{c.name}</span>
+                  <span className="text-zinc-200">
+                    {Math.max(1, ...(stage.rubric?.map((criterion) => criterion.round ?? 1) ?? [])) > 1 && (
+                      <span className="text-zinc-500 mr-2">Round {c.round ?? 1}</span>
+                    )}
+                    {c.name}
+                  </span>
                   <span className="px-2.5 py-0.5 rounded bg-white/[0.05] border border-white/[0.08] text-zinc-300 font-mono text-[11px]">
                     {c.max_points || 10} pts
                   </span>
@@ -633,9 +653,13 @@ export default function AdminStageClient({
                 </button>
               </div>
               <p className="text-[11px] text-zinc-500">
-                {initialSecrets.bugx_password_hash
-                  ? "✓ Password is configured for this stage."
-                  : "No password configured yet."}
+                {initialSecrets.bugx_password_hash ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-400">
+                    <Check className="w-3 h-3" /> Password is configured for this stage.
+                  </span>
+                ) : (
+                  "No password configured yet."
+                )}
               </p>
             </div>
 

@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────
--- TEST DATA — 12 teams, 4–5 members each, Stage 1–2 scores.
+-- TEST DATA — 12 teams, 4 members each, Stage 1–2 scores.
 -- ─────────────────────────────────────────────────────────────
 -- Safe to run against a fresh project after 0001 + 0002. Every row
 -- is tagged so reset_test_data.sql can remove exactly this data and
@@ -18,18 +18,18 @@ declare
     'TEST Code Crusaders', 'TEST Synapse Squad', 'TEST Pixel Pirates', 'TEST Matrix Minds'
   ];
   v_members text[][] := array[
-    array['Aarav S.','Diya M.','Rohan K.','Ishita P.','Veer N.'],
-    array['Ishaan P.','Ananya R.','Kabir T.','Myra S.','Reyansh J.'],
-    array['Meera V.','Arjun D.','Priya N.','Kian B.','Aadhya T.'],
-    array['Siddharth L.','Kavya G.','Neel B.','Trisha R.',null],
-    array['Tanya J.','Rishi A.','Sara W.','Dhruv P.',null],
-    array['Vikram H.','Aisha F.','Dev C.','Navya K.','Arin L.'],
-    array['Shreya I.','Aditya K.','Neha S.','Rian D.',null],
-    array['Karthik R.','Zara P.','Manav T.','Avni J.','Shaurya B.'],
-    array['Rhea M.','Arnav S.','Pooja L.','Vihaan C.',null],
-    array['Vivaan D.','Nisha B.','Jai V.','Saanvi H.','Krish P.'],
-    array['Aanya G.','Sahil N.','Tanvi R.','Om S.',null],
-    array['Harsh J.','Simran K.','Akash P.','Riya T.','Dev M.']
+    array['Aarav S.','Diya M.','Rohan K.','Ishita P.'],
+    array['Ishaan P.','Ananya R.','Kabir T.','Myra S.'],
+    array['Meera V.','Arjun D.','Priya N.','Kian B.'],
+    array['Siddharth L.','Kavya G.','Neel B.','Trisha R.'],
+    array['Tanya J.','Rishi A.','Sara W.','Dhruv P.'],
+    array['Vikram H.','Aisha F.','Dev C.','Navya K.'],
+    array['Shreya I.','Aditya K.','Neha S.','Rian D.'],
+    array['Karthik R.','Zara P.','Manav T.','Avni J.'],
+    array['Rhea M.','Arnav S.','Pooja L.','Vihaan C.'],
+    array['Vivaan D.','Nisha B.','Jai V.','Saanvi H.'],
+    array['Aanya G.','Sahil N.','Tanvi R.','Om S.'],
+    array['Harsh J.','Simran K.','Akash P.','Riya T.']
   ];
   i int;
   j int;
@@ -42,7 +42,7 @@ begin
     values (v_names[i], v_code, 'incomplete')
     returning id into v_team_id;
 
-    for j in 1..5 loop
+    for j in 1..4 loop
       exit when v_members[i][j] is null;
       insert into members (team_id, name, reg_no, email, role)
       values (

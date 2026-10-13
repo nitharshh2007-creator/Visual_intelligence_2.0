@@ -63,12 +63,14 @@ export type EventStateRow = {
 
 // get_stage_access()'s return shape (supabase/migrations/0007_stage_release.sql).
 export type StageState = "LOCKED" | "RELEASED" | "LIVE" | "COMPLETED" | "ELIMINATED";
+export type StageLifecycleStatus = "not_released" | "released" | "live" | "ended";
 export type StageAccessEntry = {
   stage: number;
   slug: string;
   name: string | null;
   state: StageState;
   reason: string | null;
+  stage_status: StageLifecycleStatus;
 };
 export type StageAccessPayload = { stages: StageAccessEntry[] };
 
@@ -171,6 +173,37 @@ export type LeaderboardPayload = {
   activity: ActivityRow[];
 };
 
+export type ShortlistDecision = "shortlisted" | "rejected" | "on_hold";
+
+export type ShortlistConfig = {
+  id: 1;
+  combined_cutoff: number;
+  stage1_min: number;
+  stage2_min: number;
+  updated_at: string;
+  updated_by: string | null;
+};
+
+export type PreliminaryScoreRow = {
+  team_id: string;
+  team_name: string;
+  team_code: string;
+  member_count: number;
+  s1: number | null;          // null = no score entered yet
+  s2: number | null;
+  s1_updated_at: string | null;
+  s2_updated_at: string | null;
+  combined: number | null;    // null until both s1 and s2 exist
+  cutoff: number;
+  stage1_min: number;
+  stage2_min: number;
+  decision: ShortlistDecision | null;
+  is_override: boolean | null;
+  decided_at: string | null;
+  decided_by: string | null;
+  created_at: string;
+};
+
 export type AdminTeamDetail = {
   id: string;
   code: string;
@@ -235,6 +268,28 @@ export type TeamRow = {
   created_at: string;
 };
 
+export type CyberThemeBrief = {
+  theme_id: string;
+  theme_title: string;
+  instructions: string;
+  palette: { name: string; hex: string }[];
+  visual_style: string;
+};
+
+export type CyberThemeAssignmentPayload = {
+  registered_count: number;
+  eligible_count: number;
+  assigned_count: number;
+  eligible_assigned_count: number;
+  assignment_version: number;
+  teams: {
+    team_id: string;
+    team_name: string;
+    assignment: CyberThemeBrief | null;
+  }[];
+  themes: CyberThemeBrief[];
+};
+
 // supabase-js's generic inference requires every table to carry
 // Row/Insert/Update/Relationships (GenericTable) — without all four,
 // the whole Database['public'] schema silently fails its structural
@@ -289,6 +344,41 @@ export type Database = {
         bugx_form_url: string | null;
         bugx_pdf_asset_id: string | null;
       }>;
+      stage_progress: ReadOnlyTable<{
+        stage: number;
+        status: string;
+        released_at: string | null;
+        started_at: string | null;
+        ended_at: string | null;
+      }>;
+      cyber_theme_catalog: ReadOnlyTable<{
+        theme_id: string;
+        title: string;
+        description_line1: string;
+        description_line2: string;
+        instructions: string;
+        palette: { name: string; hex: string }[];
+        visual_style: string;
+        sort_order: number;
+      }>;
+      cyber_theme_assignments: {
+        Row: {
+          team_id: string;
+          theme_id: string;
+          assigned_at: string;
+        };
+        Insert: {
+          team_id: string;
+          theme_id: string;
+          assigned_at?: string;
+        };
+        Update: {
+          team_id?: string;
+          theme_id?: string;
+          assigned_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       leaderboard_view: { Row: LeaderboardViewRow; Relationships: [] };
@@ -354,10 +444,21 @@ export type Database = {
       admin_extend: { Args: { p_seconds: number }; Returns: void };
       admin_end_stage: { Args: Record<PropertyKey, never>; Returns: void };
       admin_set_event_status: { Args: { p_status: string }; Returns: void };
+      admin_restart_event: { Args: Record<PropertyKey, never>; Returns: { ok: boolean; status: string; current_stage: number; current_round: number } };
       admin_set_announcement: { Args: { p_text: string }; Returns: void };
       admin_set_score: {
         Args: { p_team_id: string; p_stage: number; p_points: number; p_note?: string | null; p_force?: boolean };
         Returns: void;
+      };
+      admin_save_preliminary_scores: {
+        Args: {
+          p_team_id: string;
+          p_s1: number | null;
+          p_s2: number | null;
+          p_update_s1: boolean;
+          p_update_s2: boolean;
+        };
+        Returns: { ok: boolean };
       };
       admin_undo_last_score: { Args: { p_team_id: string; p_stage: number }; Returns: void };
       admin_lock_stage: { Args: { p_stage: number; p_locked: boolean }; Returns: void };
@@ -411,6 +512,81 @@ export type Database = {
         Returns: { ok: boolean; after_stage: number; kept_count: number; label: string };
       };
       admin_undo_cutoff: { Args: { p_after_stage: number }; Returns: { ok: boolean; current_round: number } };
+      admin_get_shortlist_config: { Args: Record<PropertyKey, never>; Returns: ShortlistConfig };
+      admin_set_shortlist_config: {
+        Args: { p_combined_cutoff: number; p_stage1_min?: number; p_stage2_min?: number };
+        Returns: { ok: boolean };
+      };
+      admin_get_preliminary_scores: { Args: Record<PropertyKey, never>; Returns: PreliminaryScoreRow[] };
+      get_cyber_theme_assignments: {
+        Args: Record<PropertyKey, never>;
+        Returns: CyberThemeAssignmentPayload;
+      };
+      admin_assign_cyber_themes: {
+        Args: { p_reassign?: boolean; p_expected_version?: number };
+        Returns: { ok: boolean; assigned_count: number; reassigned: boolean; assignment_version: number };
+      };
+      get_my_team_cyber_theme: {
+        Args: { p_code: string; p_reg_no: string };
+        Returns: {
+          team_id: string;
+          team_name: string;
+          theme: {
+            theme_id: string;
+            title: string;
+            description_line1: string;
+            description_line2: string;
+            instructions: string;
+            palette: { name: string; hex: string }[];
+            visual_style: string;
+          };
+        };
+      };
+      admin_get_cyber_theme_allocations: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          total_teams: number;
+          assigned_teams: number;
+          unassigned_teams: number;
+          round1_status: string;
+          can_reassign: boolean;
+          allocations: {
+            team_id: string;
+            team_name: string;
+            team_code: string;
+            team_status: string;
+            theme_id: string | null;
+            theme_title: string | null;
+            description_line1: string | null;
+            description_line2: string | null;
+            visual_style: string | null;
+            palette: { name: string; hex: string }[] | null;
+            assigned_at: string | null;
+          }[];
+          themes: {
+            theme_id: string;
+            title: string;
+            description_line1: string;
+            description_line2: string;
+            instructions: string;
+            palette: { name: string; hex: string }[];
+            visual_style: string;
+            sort_order: number;
+          }[];
+        };
+      };
+      admin_allocate_all_cyber_themes: {
+        Args: { p_reassign?: boolean };
+        Returns: { ok: boolean; allocated_count: number; reassigned: boolean };
+      };
+      admin_set_shortlist_decision: {
+        Args: { p_team_id: string; p_decision: string; p_note?: string | null; p_force_override?: boolean };
+        Returns: { ok: boolean; is_override: boolean };
+      };
+      admin_bulk_shortlist_teams: {
+        Args: { p_team_ids: string[] };
+        Returns: { ok: boolean; shortlisted_count: number };
+      };
       admin_generate_stage_assignments: { Args: { p_stage_slug: string }; Returns: { ok: boolean; assigned: number } };
       admin_set_team_assignment: {
         Args: { p_team_id: string; p_stage_slug: string; p_asset_id: string };

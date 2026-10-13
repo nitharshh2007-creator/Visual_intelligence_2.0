@@ -1,16 +1,48 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useStageGate } from "@/hooks/useStageGate";
 import StageLockCard from "@/components/stages/StageLockCard";
 import BugxPasswordPanel from "./BugxPasswordPanel";
+import CyberThemeCard from "@/components/stages/CyberThemeCard";
+import { CUTOFFS } from "@/data/event";
+import { FileText, ExternalLink, Code, Globe, Download, AlertTriangle } from "lucide-react";
 
 export default function StageChallengeClient() {
   const { slug } = useParams<{ slug: string }>();
   const { hydrated, entry, content, session, refresh } = useStageGate(slug);
 
+  const isEnded = entry?.stage_status === "ended" || entry?.reason === "stage_ended";
+
   if (!hydrated) return null;
   if (!entry) return <div className="p-8 text-center text-white/50">Stage not found</div>;
+
+  if (isEnded && !content) {
+    return (
+      <div className="max-w-xl mx-auto py-16 px-4 text-center space-y-6">
+        <div className="w-16 h-16 mx-auto rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-300">
+          <AlertTriangle className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <span className="text-[10px] font-mono tracking-widest text-amber-400 uppercase">Stage Concluded</span>
+          <h1 className="text-2xl font-serif text-white uppercase tracking-wider">This Stage Has Ended</h1>
+          <p className="text-white/60 text-sm leading-relaxed max-w-md mx-auto">
+            The organizer has ended this round. Challenge materials and official Google Form submissions for this stage are now closed.
+          </p>
+        </div>
+        <div>
+          <Link
+            href={`/stages/${slug}`}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-black text-xs font-mono font-bold uppercase tracking-wider hover:scale-105 transition-transform"
+          >
+            <span>View Stage Rules & Overview</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!content || !session) return <StageLockCard stage={entry.stage} name={entry.name} state={entry.state} reason={entry.reason} />;
 
   const { assets } = content;
@@ -20,10 +52,73 @@ export default function StageChallengeClient() {
 
   return (
     <div className="space-y-8 pb-16">
+      {isEnded && (
+        <div className="p-4 rounded-xl border border-amber-400/30 bg-amber-400/10 text-center">
+          <p className="text-sm font-bold uppercase tracking-wider text-amber-200">Stage Ended</p>
+          <p className="text-xs text-white/70 mt-1">
+            This stage has ended. Submissions and Google Forms are closed.
+          </p>
+        </div>
+      )}
       <div className="text-center space-y-4 mb-12">
         <h1 className="text-3xl font-serif text-white uppercase tracking-wider">Challenge Materials</h1>
         <p className="text-white/50">Assets and instructions for this stage.</p>
       </div>
+
+      {slug === "cyber-styling" && (
+        <>
+          <div className="p-6 border border-cyan-500/30 bg-cyan-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-cyan-500/5">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                <Code className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">Cyber Styling Base HTML File</h3>
+                <p className="text-xs text-white/60 mt-0.5">
+                  Download the common starter HTML code as a text file or open it directly in your browser as a website.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  try {
+                    const res = await fetch("/cyber-styling.txt");
+                    const text = await res.text();
+                    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = "cyber-styling.txt";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                  } catch {
+                    window.location.href = "/api/cyber-style/download";
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-mono font-bold transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
+              >
+                <Code className="w-3.5 h-3.5" />
+                <span>Download as Code (.txt)</span>
+              </button>
+              <a
+                href="/cyber-styling.html"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-mono font-bold transition-all"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Open as Website</span>
+              </a>
+            </div>
+          </div>
+          <CyberThemeCard teamCode={session.teamCode} regNo={session.regNo} isEnded={isEnded} />
+        </>
+      )}
 
       {content.bugx_configured && (
         <BugxPasswordPanel
@@ -33,12 +128,115 @@ export default function StageChallengeClient() {
           solved={content.bugx_solved}
           formUrl={content.bugx_form_url}
           onSolved={refresh}
+          isEnded={isEnded}
         />
       )}
 
+      {/* Stage 1 Submission Form Attachment */}
+      {slug === "cyber-styling" && (
+        <div className="p-6 border border-emerald-500/30 bg-emerald-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-emerald-500/5">
+          <div className="flex items-center gap-3.5">
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-lg">Round 1 Submission Form</h3>
+              <p className="text-xs text-white/60 mt-0.5">
+                {isEnded
+                  ? "This stage has ended. Submissions are closed."
+                  : "Official Google Form to submit your generative AI prompts, restyled HTML, and assets."}
+              </p>
+            </div>
+          </div>
+          {isEnded ? (
+            <div className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 text-xs font-mono font-bold uppercase tracking-wider">
+              Stage Ended · Submissions Closed
+            </div>
+          ) : (
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLScX1EqwjTGJmmcBORdVcxPS6UxLmAho1b9Mzm-jCF5--ZMuhQ/viewform?usp=publish-editor"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-mono font-bold transition-all shadow-md shadow-emerald-500/20"
+            >
+              <span>Open Google Form</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Stage 3 (Prompt Rumble) Google Form Attachment */}
+      {slug === "prompt-rumble" && (
+        <div className="p-6 border border-cyan-500/30 bg-cyan-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-cyan-500/5">
+          <div className="flex items-center gap-3.5">
+            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-lg">Level 3 Submission Form · Prompt Rumble</h3>
+              <p className="text-xs text-white/60 mt-0.5">
+                {isEnded
+                  ? "This stage has ended. Submissions are closed."
+                  : "Official Google Form to submit your 30-second AI advertisement and materials."}
+              </p>
+            </div>
+          </div>
+          {isEnded ? (
+            <div className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 text-xs font-mono font-bold uppercase tracking-wider">
+              Stage Ended · Submissions Closed
+            </div>
+          ) : (
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLSfTr-yvIy-TcD40SlyXOC52rJPZn_pp4--tSuZ0zQDW8B6XeA/viewform"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-mono font-bold transition-all shadow-md shadow-cyan-500/20"
+            >
+              <span>Open Google Form</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Stage 4 (Prompt Charades) Google Form Attachment */}
+      {slug === "prompt-charades" && (
+        <div className="p-6 border border-purple-500/30 bg-purple-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-purple-500/5">
+          <div className="flex items-center gap-3.5">
+            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-lg">Level 4 Submission Form · Prompt Charades</h3>
+              <p className="text-xs text-white/60 mt-0.5">
+                {isEnded
+                  ? "This stage has ended. Submissions are closed."
+                  : "Official Google Form to submit your prompt charades generative images and answers."}
+              </p>
+            </div>
+          </div>
+          {isEnded ? (
+            <div className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 text-xs font-mono font-bold uppercase tracking-wider">
+              Stage Ended · Submissions Closed
+            </div>
+          ) : (
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLSetBbJZyIyvgTcRv1owaleEwUWUe1zmlHII6JUm7rCFHz_PFg/viewform"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white text-xs font-mono font-bold transition-all shadow-md shadow-purple-500/20"
+            >
+              <span>Open Google Form</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </div>
+      )}
+
       {assets.length === 0 ? (
-        <div className="p-12 text-center border border-white/10 bg-white/5 rounded-2xl text-white/50">
-          No materials have been released yet.
+        <div className="p-8 text-center border border-white/10 bg-white/5 rounded-2xl text-white/50 text-sm">
+          No additional materials released for this stage.
         </div>
       ) : (
         <div className="grid gap-6">

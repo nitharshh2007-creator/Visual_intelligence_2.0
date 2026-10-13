@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { TEAM_MAX, TEAM_MIN } from "@/data/event";
+import { TEAM_SIZE_LABEL } from "@/data/event";
 
 const EASE_OUT_EXPO = [0.76, 0, 0.24, 1] as const;
 
@@ -34,7 +34,7 @@ export default function About() {
         >
           {/* 2. Lead statement */}
           <p className="font-serif text-[clamp(26px,2.8vw,40px)] leading-[1.25] text-brand-bg/90 mb-10">
-            <strong className="text-brand-bg font-medium">IEEE Computer Society & DSCS</strong> bridge the gap between academic theory and bleeding-edge industry practices. We believe in fostering technical elegance.
+            <strong className="text-brand-bg font-medium">IEEE CS</strong> bridges the gap between academic theory and bleeding-edge industry practices. We believe in fostering technical elegance.
           </p>
 
           {/* 3. Three labelled rows */}
@@ -95,7 +95,7 @@ export default function About() {
 
           {/* Pull quote */}
           <p className="font-serif italic text-[clamp(24px,2.6vw,38px)] leading-[1.25] text-brand-bg mb-12">
-            This isn&apos;t just a competition. It&apos;s a high-stakes, 4-stage pursuit of precision that demands rapid coordination, sharp memory, and creative linguistics — played out across teams of {TEAM_MIN}–{TEAM_MAX}, where every member&apos;s role decides the outcome.
+            This isn&apos;t just a competition. It&apos;s a high-stakes, 4-stage pursuit of precision that demands rapid coordination, sharp memory, and creative linguistics — played out across teams of {TEAM_SIZE_LABEL}, where every member&apos;s role decides the outcome.
           </p>
 
           {/* 5. Stats row inside the column */}

@@ -286,6 +286,8 @@ function mapPostgrestErrorCode(code: string | undefined): RegistrationErrorCode 
     case "VI004": return "REGISTRATION_CLOSED";
     case "VI005": return "NAME_TAKEN";
     case "VI006": return "NOT_ELIGIBLE";
+    case "42501": // insufficient_privilege — RLS blocked the call
+    case "42P01": return "NETWORK_ERROR"; // undefined_table — schema mismatch
     // No SQLSTATE at all means Postgrest never got a structured error
     // back from the RPC — almost always a transport failure (offline,
     // DNS, CORS, a dropped connection), not a validation rejection.
@@ -299,7 +301,13 @@ async function realGetTeam(code: string, regNo?: string | null): Promise<Registr
     p_code: code,
     p_reg_no: regNo ?? null,
   });
-  if (error || !data) return null;
+  // VI001 = team not found — return null so callers can distinguish
+  // "no such team" from a real network/RLS error.
+  if (error) {
+    if (error.code === "VI001") return null;
+    throw Object.assign(new Error(error.message), { code: mapPostgrestErrorCode(error.code) });
+  }
+  if (!data) return null;
   return mapLobbyToTeam(data as unknown as LobbyPayload);
 }
 
@@ -339,10 +347,14 @@ async function realJoinTeam(
     p_section: section ?? null,
     p_year: year ?? null,
   });
-  const team = await realGetTeam(code);
   if (error) {
+    // Fetch current team state even on error so the UI can show the
+    // up-to-date roster (e.g. TEAM_FULL shows the full roster).
+    let team: RegistrationTeam | null = null;
+    try { team = await realGetTeam(code); } catch { /* ignore */ }
     return { team, error: mapPostgrestErrorCode(error.code) };
   }
+  const team = await realGetTeam(code);
   return { team };
 }
 
@@ -390,7 +402,10 @@ function realSubscribe(code: string, onChange: (team: RegistrationTeam | null) =
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "teams", filter: `code=eq.${code}` },
+        // Filter on `id` (primary key, always in replica identity) rather
+        // than `code` (not in replica identity by default — Realtime
+        // would broadcast the row but the filter would never match).
+        { event: "*", schema: "public", table: "teams", filter: `id=eq.${team.id}` },
         async () => onChange(await realGetTeam(code))
       )
       .subscribe();
@@ -438,10 +453,10 @@ export async function joinTeam(
   });
 }
 
-// The minimal "Find team" lookup — same debounce as the writes (still
-// a real DB round trip) and network-error-mapped.
+// The minimal "Find team" lookup — network-error-mapped.
+// No debounce: this is a read-only RPC and blocking it causes the
+// cross-tab "code not found" symptom when the user hits Find quickly.
 export async function findTeamByCode(inviteCode: string): Promise<{ preview: TeamPreview | null; error?: RegistrationErrorCode }> {
-  debounceGuard("findTeamByCode", 400); // shorter gap than the writes — repeated "Find" taps shouldn't feel sluggish
   const code = normalizeTeamCode(inviteCode);
   return withNetworkErrorMapping(() =>
     isSupabaseConfigured() ? realFindTeamByCode(code) : Promise.resolve(mockFindTeamByCode(code))
@@ -450,7 +465,8 @@ export async function findTeamByCode(inviteCode: string): Promise<{ preview: Tea
 
 export async function getTeam(inviteCode: string, regNo?: string | null): Promise<RegistrationTeam | null> {
   const code = normalizeTeamCode(inviteCode);
-  return isSupabaseConfigured() ? realGetTeam(code, regNo) : mockGetTeam(code);
+  if (!isSupabaseConfigured()) return mockGetTeam(code);
+  return realGetTeam(code, regNo);
 }
 
 export function subscribeToTeam(inviteCode: string, onChange: (team: RegistrationTeam | null) => void): () => void {

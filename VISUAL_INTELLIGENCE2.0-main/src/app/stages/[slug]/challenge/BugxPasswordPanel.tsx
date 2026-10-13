@@ -10,6 +10,7 @@ export default function BugxPasswordPanel({
   solved,
   formUrl,
   onSolved,
+  isEnded,
 }: {
   slug: string;
   teamCode: string;
@@ -17,6 +18,7 @@ export default function BugxPasswordPanel({
   solved: boolean;
   formUrl: string | null;
   onSolved: () => void;
+  isEnded?: boolean;
 }) {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -47,15 +49,30 @@ export default function BugxPasswordPanel({
         <p className="text-emerald-300 font-bold uppercase tracking-wider text-sm">Password unlocked</p>
         <p className="text-white/60 text-sm">The locked file above is now available. Submit your final answer here:</p>
         {formUrl && (
-          <a
-            href={formUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-block px-5 py-2.5 bg-emerald-500 text-black rounded font-bold text-sm uppercase tracking-wider"
-          >
-            Open Google Form →
-          </a>
+          isEnded ? (
+            <div className="inline-block px-5 py-2.5 bg-white/5 border border-white/10 text-white/40 rounded font-mono font-bold text-xs uppercase tracking-wider">
+              Stage Ended · Form Closed
+            </div>
+          ) : (
+            <a
+              href={formUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block px-5 py-2.5 bg-emerald-500 text-black rounded font-bold text-sm uppercase tracking-wider"
+            >
+              Open Google Form →
+            </a>
+          )
         )}
+      </div>
+    );
+  }
+
+  if (isEnded) {
+    return (
+      <div className="p-6 border border-white/10 bg-white/5 rounded-xl text-center space-y-2">
+        <p className="text-white/70 font-medium text-sm">Stage has ended.</p>
+        <p className="text-white/40 text-xs">Password verification and submissions are now closed.</p>
       </div>
     );
   }

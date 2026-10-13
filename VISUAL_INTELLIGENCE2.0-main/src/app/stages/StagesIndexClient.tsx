@@ -92,12 +92,18 @@ export default function StagesIndexClient() {
               }}
             >
               <span className={`absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold ${STATE_BADGE[s.state]}`}>
-                {s.state}
+                {s.stage_status === "ended" ? "ENDED" : s.state}
               </span>
               <div className="text-white/30 text-5xl font-serif italic mb-4">0{s.stage}</div>
               <h2 className="text-3xl font-serif text-white mb-2">{s.name ?? `Stage ${s.stage}`}</h2>
               <p className="text-white/50 text-sm">
-                {accessible ? "Tap to open →" : s.state === "ELIMINATED" ? "No longer available for your team." : "Not open yet."}
+                {s.stage_status === "ended"
+                  ? "The host ended this stage. Submissions are closed."
+                  : accessible
+                  ? "Tap to open →"
+                  : s.state === "ELIMINATED"
+                  ? "No longer available for your team."
+                  : "Not open yet."}
               </p>
             </div>
           );

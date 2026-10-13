@@ -5,7 +5,7 @@ import { eventDetails } from "@/data/event";
 
 export default function Footer() {
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   };
 
   return (
@@ -33,8 +33,8 @@ export default function Footer() {
             <h4 className="text-brand-bg/50 mb-4">Contact</h4>
             <div className="space-y-2">
               <p>{eventDetails.venue}</p>
-              <a href="mailto:contact@ieee-dscs.org" className="block hover:opacity-50 transition-opacity">
-                contact@ieee-dscs.org
+              <a href="mailto:contact@ieee-cse.org" className="block hover:opacity-50 transition-opacity">
+                contact@ieee-cse.org
               </a>
             </div>
           </div>
@@ -69,7 +69,7 @@ export default function Footer() {
       </div>
       
       <div className="max-w-7xl mx-auto mt-8 pt-4 text-[10px] uppercase tracking-[0.1em] text-brand-bg/30">
-        © 2026 IEEE Computer Society DSCS.
+        © 2026 IEEE Computer Society CSE.
       </div>
     </footer>
   );

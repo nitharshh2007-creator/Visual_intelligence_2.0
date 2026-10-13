@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  adminEndStage,
+  adminEndStage, adminRestartEvent,
   adminRotateProjectorToken, adminSetAnnouncement, adminSetEventStatus, adminSetLeaderboardVisibility,
   adminSetRegistrationClosed, adminSetStage, subscribeAdminRealtime, AdminError,
 } from "@/lib/admin";
 import { getSupabaseClient } from "@/lib/supabase";
 import type { EventStateRow } from "@/lib/supabase";
+import { AlertTriangle } from "lucide-react";
 import EventFlowPanel from "./EventFlowPanel";
 
 // Stages are started/ended purely by admin action — no fixed duration
@@ -32,18 +33,29 @@ export default function AdminDashboard() {
   const [announcementDraft, setAnnouncementDraft] = useState("");
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
+  const eventStateReadRef = useRef(0);
+  const eventStatusActionRef = useRef(false);
 
-  function pushToast(kind: Toast["kind"], message: string) {
+  const pushToast = useCallback((kind: Toast["kind"], message: string) => {
     const id = ++toastIdRef.current;
     setToasts((t) => [...t, { id, kind, message }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000);
-  }
+  }, []);
 
   const fetchAll = useCallback(async () => {
+    const requestId = ++eventStateReadRef.current;
     const supabase = getSupabaseClient();
-    const { data: es } = await supabase.from("event_state").select("*").eq("id" as never, 1).maybeSingle();
-    if (es) setEventState(es as EventStateRow);
-  }, []);
+    const { data: es, error } = await supabase.from("event_state").select("*").eq("id" as never, 1).maybeSingle();
+    if (error) {
+      pushToast("error", `Failed to load event status: ${error.message}`);
+      return;
+    }
+    if (!es) {
+      pushToast("error", "The event status row was not found.");
+      return;
+    }
+    if (requestId === eventStateReadRef.current) setEventState(es as EventStateRow);
+  }, [pushToast]);
 
   useEffect(() => {
     function init() {
@@ -59,44 +71,72 @@ export default function AdminDashboard() {
       if (status === "SUBSCRIBED") setConnection("connected");
       else if (status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") setConnection("reconnecting");
     });
-    const poll = setInterval(fetchAll, 10000);
     return () => {
       unsubscribe();
       supabase.removeChannel(channel);
-      clearInterval(poll);
     };
   }, [fetchAll]);
 
-  async function handleStartStage(stage: number) {
-    if (!confirm(`Start Stage ${stage}? This is live immediately for all teams.`)) return;
+  async function handleStartStage(stage: number): Promise<boolean> {
+    if (!confirm(`Start Stage ${stage}? This is live immediately for all teams.`)) return false;
     try {
       await adminSetStage(stage, UNTIMED_STAGE_DURATION_SECONDS);
       pushToast("success", `Stage ${stage} started`);
       fetchAll();
+      return true;
     } catch (e) {
       pushToast("error", e instanceof AdminError ? e.message : "Failed to start stage");
+      return false;
     }
   }
 
-  async function handleEndStage() {
-    if (!confirm("End the current stage now for everyone?")) return;
+  async function handleEndStage(): Promise<boolean> {
+    if (!confirm("End the current stage now for everyone?")) return false;
     try {
       await adminEndStage();
       pushToast("success", "Stage ended");
       fetchAll();
+      return true;
     } catch (e) {
-      pushToast("error", e instanceof AdminError ? e.message : "Failed");
+      pushToast("error", e instanceof AdminError ? e.message : "Failed to end stage");
+      return false;
     }
   }
 
-  async function handleSetEventStatus(status: "live" | "finished") {
-    if (!confirm(`Mark the event as ${status.toUpperCase()}? This is visible to everyone immediately.`)) return;
+  async function handleSetEventStatus(status: "live" | "finished"): Promise<boolean> {
+    if (eventStatusActionRef.current) return false;
+    eventStatusActionRef.current = true;
     try {
-      await adminSetEventStatus(status);
-      pushToast("success", `Event marked ${status}`);
-      fetchAll();
+      const savedState = await adminSetEventStatus(status);
+      eventStateReadRef.current += 1;
+      setEventState(savedState);
+      pushToast(
+        "success",
+        status === "finished" ? "Event finished" : "Event status is live",
+      );
+      return true;
     } catch (e) {
-      pushToast("error", e instanceof AdminError ? e.message : "Failed");
+      pushToast("error", e instanceof AdminError ? e.message : "Failed to update event status");
+      return false;
+    } finally {
+      eventStatusActionRef.current = false;
+    }
+  }
+
+  async function handleRestartEvent(): Promise<boolean> {
+    if (eventStatusActionRef.current) return false;
+    eventStatusActionRef.current = true;
+    try {
+      const savedState = await adminRestartEvent();
+      eventStateReadRef.current += 1;
+      setEventState(savedState);
+      pushToast("success", "Event restarted from Stage 1");
+      return true;
+    } catch (e) {
+      pushToast("error", e instanceof AdminError ? e.message : "Failed to restart the event");
+      return false;
+    } finally {
+      eventStatusActionRef.current = false;
     }
   }
 
@@ -175,7 +215,10 @@ export default function AdminDashboard() {
 
       {connection === "reconnecting" && (
         <div className="px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs uppercase tracking-wider flex items-center justify-between">
-          <span>⚠ Connection lost — reconnecting…</span>
+          <span className="flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>Connection lost — reconnecting…</span>
+          </span>
           <button onClick={fetchAll} className="underline hover:text-amber-200">Refresh</button>
         </div>
       )}
@@ -213,6 +256,8 @@ export default function AdminDashboard() {
         onEnd={handleEndStage}
         onToggleVisibility={handleToggleVisibility}
         onSetEventStatus={handleSetEventStatus}
+        onRestartEvent={handleRestartEvent}
+        onEventStateChanged={fetchAll}
         onCopyProjectorLink={handleCopyProjectorLink}
         onRotateProjectorLink={handleRotateProjectorLink}
         onToggleRegistration={handleToggleRegistration}
@@ -236,6 +281,58 @@ export default function AdminDashboard() {
           </button>
         </div>
       </section>
+
+      {/* Team Directory & Shortlisting Hub Quick Links */}
+      <div className="p-5 rounded-xl bg-gradient-to-r from-[#800020]/20 via-black to-black border border-[#800020]/40 space-y-3 font-mono text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-400" />
+              <span>Team Management &amp; Progression Hub</span>
+            </h3>
+            <p className="text-xs text-white/60 mt-0.5">
+              Access the master team directory, execute Level 3 shortlisting, manage Level 4 finalists, and review eliminated teams.
+            </p>
+          </div>
+          <Link
+            href="/admin/teams?tab=all"
+            className="px-4 py-2 rounded-xl bg-white text-black font-bold uppercase text-[11px] tracking-wider hover:bg-white/90 transition-all shrink-0 text-center"
+          >
+            Open Directory →
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+          <Link
+            href="/admin/teams?tab=all"
+            className="p-3 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] hover:border-white/20 transition-all group"
+          >
+            <span className="text-[10px] uppercase text-white/50 block group-hover:text-white">Master Directory</span>
+            <span className="text-white font-bold text-xs mt-1 block">All Teams →</span>
+          </Link>
+          <Link
+            href="/admin/teams?tab=l3"
+            className="p-3 rounded-lg bg-cyan-950/20 border border-cyan-500/20 hover:bg-cyan-950/40 hover:border-cyan-500/40 transition-all group"
+          >
+            <span className="text-[10px] uppercase text-cyan-400/60 block group-hover:text-cyan-300">Level 3 Cutoff</span>
+            <span className="text-cyan-300 font-bold text-xs mt-1 block">Shortlist 10 →</span>
+          </Link>
+          <Link
+            href="/admin/teams?tab=l4"
+            className="p-3 rounded-lg bg-purple-950/20 border border-purple-500/20 hover:bg-purple-950/40 hover:border-purple-500/40 transition-all group"
+          >
+            <span className="text-[10px] uppercase text-purple-400/60 block group-hover:text-purple-300">Finalists</span>
+            <span className="text-purple-300 font-bold text-xs mt-1 block">Prompt Charades →</span>
+          </Link>
+          <Link
+            href="/admin/teams?tab=eliminated"
+            className="p-3 rounded-lg bg-red-950/20 border border-red-500/20 hover:bg-red-950/40 hover:border-red-500/40 transition-all group"
+          >
+            <span className="text-[10px] uppercase text-red-400/60 block group-hover:text-red-300">Cut Teams</span>
+            <span className="text-red-300 font-bold text-xs mt-1 block">Eliminated →</span>
+          </Link>
+        </div>
+      </div>
 
       {/* Quick Link to Stages & Assets */}
       <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.08] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs font-mono">

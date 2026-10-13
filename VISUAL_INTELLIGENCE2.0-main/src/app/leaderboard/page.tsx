@@ -7,6 +7,7 @@ import { useTeamGate } from "@/hooks/useTeamGate";
 import { checkIsAdmin } from "@/lib/admin";
 import type { Team, LeaderboardData } from "@/lib/types";
 import TeamGateContent from "@/components/TeamGateContent";
+import { Megaphone } from "lucide-react";
 
 import "@/app/lb-theme.css";
 import LeaderboardTopBar from "@/components/leaderboard/LeaderboardTopBar";
@@ -143,10 +144,11 @@ export default function LeaderboardPage() {
 
         {eventState.announcement && (
           <div
-            className="mb-4 px-4 py-3 text-center text-sm font-semibold"
+            className="mb-4 px-4 py-3 text-center text-sm font-semibold flex items-center justify-center gap-2"
             style={{ background: "var(--lb-burgundy-900)", border: "1px solid var(--lb-burgundy-700)", color: "var(--lb-white)", borderRadius: 12 }}
           >
-            📣 {eventState.announcement}
+            <Megaphone className="w-4 h-4 shrink-0 text-[#e9adb5]" />
+            <span>{eventState.announcement}</span>
           </div>
         )}
 

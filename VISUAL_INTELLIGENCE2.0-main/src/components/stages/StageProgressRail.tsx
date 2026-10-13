@@ -1,6 +1,7 @@
 "use client";
 
 import type { StageAccessEntry } from "@/lib/supabase";
+import { Check, Lock, X } from "lucide-react";
 
 interface Props {
   stages: StageAccessEntry[];
@@ -36,9 +37,19 @@ export default function StageProgressRail({ stages }: Props) {
                 s.state === "LIVE" ? "animate-pulse" : ""
               }`}
             >
-              {s.state === "COMPLETED" ? "✓" : s.state === "LOCKED" ? "🔒" : s.state === "ELIMINATED" ? "✕" : s.stage}
+              {s.state === "COMPLETED" ? (
+                <Check className="w-5 h-5 stroke-[2.5]" />
+              ) : s.state === "LOCKED" ? (
+                <Lock className="w-4 h-4" />
+              ) : s.state === "ELIMINATED" ? (
+                <X className="w-4 h-4" />
+              ) : (
+                s.stage
+              )}
             </div>
-            <span className="text-[9px] uppercase tracking-widest text-white/40">{LABELS[s.state]}</span>
+            <span className="text-[9px] uppercase tracking-widest text-white/40">
+              {s.stage_status === "ended" ? "Ended" : LABELS[s.state]}
+            </span>
           </div>
           {i < stages.length - 1 && (
             <div className={`w-8 md:w-16 h-[1px] mb-5 ${s.state === "COMPLETED" ? "bg-white/50" : "bg-white/10"}`} />

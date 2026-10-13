@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { createTeam, getTeam, loadSession, normalizeTeamCode, subscribeToTeam } from "@/lib/registration";
+import { createTeam, getTeam, loadSession, clearSession, normalizeTeamCode, subscribeToTeam } from "@/lib/registration";
 import { TEAM_MAX, eventDetails } from "@/data/event";
 import type { RegistrationTeam } from "@/lib/types";
 import type { RegistrationErrorCode } from "@/lib/types";
@@ -50,18 +50,31 @@ export default function RegisterPage() {
   }, []);
 
   // Resume an in-progress registration from this browser, if any.
+  // Only runs once on mount — navigating to /register always starts
+  // with a fresh React tree, so this is the correct place to restore.
   useEffect(() => {
+    // If ?new=1 is in the URL, skip resume and show the choose screen.
+    // This lets "Register a different team" work without clearing valid sessions.
+    if (new URLSearchParams(window.location.search).get("new") === "1") {
+      setHydrated(true);
+      return;
+    }
     async function resume() {
       const session = loadSession();
       const savedCode = localStorage.getItem(DRAFT_KEY) ?? session?.teamCode;
       if (savedCode) {
-        const existing = await getTeam(savedCode);
-        if (existing) {
-          setTeam(existing);
-          // DRAFT_KEY only exists for captains (set by createTeam), so
-          // its presence alone is a reliable captain signal even if
-          // the session record predates the isCaptain field.
-          setIsCaptainView(session ? session.isCaptain : true);
+        try {
+          const existing = await getTeam(savedCode);
+          if (existing) {
+            setTeam(existing);
+            setIsCaptainView(session ? session.isCaptain : true);
+          } else {
+            // Definitive VI001: team no longer exists — clear stale local state.
+            localStorage.removeItem(DRAFT_KEY);
+            clearSession();
+          }
+        } catch {
+          // Network/RLS error — don't clear session; user may be offline.
         }
       }
       setHydrated(true);
@@ -84,7 +97,7 @@ export default function RegisterPage() {
     setError(null);
     try {
       const created = await createTeam(teamName, captainName, regNo, email);
-      localStorage.setItem(DRAFT_KEY, created.inviteCode);
+      // createTeam already sets DRAFT_KEY and session via registration.ts
       setTeam(created);
       setIsCaptainView(true);
     } catch (err) {
@@ -104,7 +117,7 @@ export default function RegisterPage() {
   if (!hydrated) return null;
 
   return (
-    <main className="relative z-10 min-h-screen bg-brand-bg/50 backdrop-blur-md text-brand-fg px-6 lg:px-12 py-20">
+    <main className="registration-page relative z-10 min-h-screen text-brand-fg px-6 lg:px-12 py-20">
       <div className="max-w-3xl mx-auto mb-12">
         {mode === "choose" || team ? (
           <Link href="/" className="font-sans text-xs uppercase tracking-[0.15em] text-brand-fg/50 hover:text-brand-fg transition-colors">
@@ -121,7 +134,21 @@ export default function RegisterPage() {
       </div>
 
       {team ? (
-        <LobbyBoard team={team} isCaptainView={isCaptainView} />
+        <LobbyBoard
+          team={team}
+          isCaptainView={isCaptainView}
+          onRegisterNew={() => {
+            // Clear form fields but keep the existing session intact —
+            // the user can return to their lobby via "Already registered?"
+            setTeamName("");
+            setCaptainName("");
+            setRegNo("");
+            setEmail("");
+            setError(null);
+            setTeam(null);
+            setMode("choose");
+          }}
+        />
       ) : mode === "choose" ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -174,6 +201,7 @@ export default function RegisterPage() {
             {showReenter && (
               <form onSubmit={handleReenter} className="mt-4 flex gap-2 max-w-sm mx-auto">
                 <input
+                  aria-label="Team code"
                   value={reenterCode}
                   onChange={(e) => setReenterCode(e.target.value)}
                   placeholder="DUM-XXXX"
@@ -207,10 +235,11 @@ export default function RegisterPage() {
 
           <form onSubmit={handleCreate} className="space-y-6">
             <div>
-              <label className="block text-xs font-sans uppercase tracking-wider text-brand-fg/50 mb-2">
+              <label htmlFor="team-name" className="block text-xs font-sans uppercase tracking-wider text-brand-fg/50 mb-2">
                 Team Name
               </label>
               <input
+                id="team-name"
                 value={teamName}
                 onChange={(e) => setTeamName(e.target.value)}
                 placeholder="e.g. Prompt Engineers"
@@ -220,10 +249,11 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-sans uppercase tracking-wider text-brand-fg/50 mb-2">
+              <label htmlFor="captain-name" className="block text-xs font-sans uppercase tracking-wider text-brand-fg/50 mb-2">
                 Your Name (Captain)
               </label>
               <input
+                id="captain-name"
                 value={captainName}
                 onChange={(e) => setCaptainName(e.target.value)}
                 placeholder="e.g. Aarav S."
@@ -233,10 +263,11 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-sans uppercase tracking-wider text-brand-fg/50 mb-2">
+              <label htmlFor="registration-number" className="block text-xs font-sans uppercase tracking-wider text-brand-fg/50 mb-2">
                 Registration Number
               </label>
               <input
+                id="registration-number"
                 value={regNo}
                 onChange={(e) => setRegNo(e.target.value)}
                 placeholder="e.g. 24CS045"
@@ -246,11 +277,12 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-sans uppercase tracking-wider text-brand-fg/50 mb-2">
+              <label htmlFor="email" className="block text-xs font-sans uppercase tracking-wider text-brand-fg/50 mb-2">
                 Email
               </label>
               <input
                 type="email"
+                id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@college.edu"
@@ -259,7 +291,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            {error && <p className="text-xs font-sans text-red-600">{error}</p>}
+            {error && <p role="alert" className="text-xs font-sans text-red-600">{error}</p>}
 
             <button type="submit" disabled={submitting} className="luxury-button w-full disabled:opacity-50">
               {submitting ? "Creating…" : "Create Team"}

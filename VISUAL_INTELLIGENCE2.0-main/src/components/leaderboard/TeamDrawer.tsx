@@ -7,6 +7,7 @@ import type { Team } from "@/lib/types";
 import MedalCoin from "./MedalCoin";
 import { initials as computeInitials, avatarColor } from "./helpers";
 import type { PodiumMaterial } from "./TrophyIcon";
+import { X, Star } from "lucide-react";
 
 const ScoreHistoryChart = dynamic(() => import("./ScoreHistoryChart"), {
   ssr: false,
@@ -130,11 +131,11 @@ function DrawerBody({
     <div className="p-6 relative">
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-lg"
+        className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center"
         style={{ background: "rgba(255,255,255,0.06)", color: "var(--lb-white)", borderRadius: 999 }}
         aria-label="Close drawer"
       >
-        ✕
+        <X className="w-4 h-4" />
       </button>
 
       {/* Header */}
@@ -202,8 +203,9 @@ function DrawerBody({
           {stageNames.map((name, i) => (
             <div key={name}>
               <div className="flex justify-between text-xs mb-1">
-                <span className="font-semibold" style={{ color: i === bestStageIdx ? "var(--lb-white)" : "var(--lb-grey-400)" }}>
-                  {name} {i === bestStageIdx && "★"}
+                <span className="font-semibold inline-flex items-center gap-1" style={{ color: i === bestStageIdx ? "var(--lb-white)" : "var(--lb-grey-400)" }}>
+                  <span>{name}</span>
+                  {i === bestStageIdx && <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline" />}
                 </span>
                 <span style={{ color: "var(--lb-white)" }}>{stageScores[i]}</span>
               </div>

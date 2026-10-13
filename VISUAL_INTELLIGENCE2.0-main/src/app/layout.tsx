@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import CustomCursor from "@/components/CustomCursor";
+import MotionPreferences from "@/components/MotionPreferences";
 
 export const metadata: Metadata = {
-  title: "Visual Intelligence 2.0 | Dum Sarat",
-  description: "4 Stages of Chaos. A live first-year event run by the IEEE Computer Society, DSCS.",
+  title: "Visual Intelligence 2.0",
+  description: "4 Stages of Chaos. A live first-year event run by the IEEE Computer Society, CSE.",
   icons: {
     icon: "/favicon.ico",
   },
@@ -16,10 +16,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased text-brand-fg selection:bg-brand-fg selection:text-brand-bg animate-[fadeIn_0.4s_ease_forwards]">
-        <CustomCursor />
-        {children}
+    <html lang="en" data-scroll-behavior="smooth">
+      <body className="antialiased text-brand-fg selection:bg-brand-fg selection:text-brand-bg">
+        <MotionPreferences>{children}</MotionPreferences>
       </body>
     </html>
   );

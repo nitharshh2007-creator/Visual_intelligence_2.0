@@ -24,7 +24,7 @@ export default function LeaderboardTopBar({ activeStage, onStageChange, connecti
         </span>
         <span style={{ color: "var(--lb-grey-400)" }}>·</span>
         <span className="lb-display-800 text-[11px] tracking-[0.18em]" style={{ color: "var(--lb-rose-200)" }}>
-          DSCS
+          CSE
         </span>
       </div>
 

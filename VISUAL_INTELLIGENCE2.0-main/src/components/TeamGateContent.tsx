@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { TeamGateState } from "@/hooks/useTeamGate";
 import type { RegistrationTeam } from "@/lib/types";
 import { TEAM_MIN } from "@/data/event";
+import { Users, Lock } from "lucide-react";
 
 // Pure presentational wall — shared by TeamGate (wraps /stages) and
 // /leaderboard directly, since the leaderboard needs to keep its own
@@ -13,8 +14,12 @@ import { TEAM_MIN } from "@/data/event";
 export default function TeamGateContent({ state, team }: { state: Exclude<TeamGateState, "checking" | "ok">; team: RegistrationTeam | null }) {
   return (
     <div className="max-w-md mx-auto px-4 py-24 text-center">
-      <div className="text-5xl mb-6" aria-hidden="true">
-        {state === "incomplete" ? "👥" : "🔒"}
+      <div className="flex justify-center mb-6" aria-hidden="true">
+        {state === "incomplete" ? (
+          <Users className="w-12 h-12 text-[#e9adb5]" />
+        ) : (
+          <Lock className="w-12 h-12 text-white/40" />
+        )}
       </div>
       <h1 className="text-2xl font-serif text-white mb-3">
         {state === "incomplete" ? "Your team isn't ready yet" : "Join a team first"}

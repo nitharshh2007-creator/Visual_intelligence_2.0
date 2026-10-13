@@ -61,7 +61,7 @@ export default function ProjectorMode({ teams, activity, eventState, onExit }: P
             </span>
             <span style={{ color: "var(--lb-grey-400)" }}> · </span>
             <span className="lb-display-800 text-xs tracking-[0.18em]" style={{ color: "var(--lb-rose-200)" }}>
-              DSCS
+              CSE
             </span>
             <h1 className="lb-display text-3xl mt-1" style={{ color: "var(--lb-white)" }}>
               Top Teams

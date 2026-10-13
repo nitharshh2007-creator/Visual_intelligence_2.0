@@ -5,14 +5,17 @@ import { adminGetStageOverview, adminReleaseStage, adminUndoCutoff, adminSetTeam
 import type { AdminStageOverview } from "@/lib/supabase";
 import type { EventStateRow } from "@/lib/supabase";
 import { CUTOFFS } from "@/data/event";
+import { Flag } from "lucide-react";
 import CutoffDialog from "./CutoffDialog";
 
 interface Props {
   eventState: EventStateRow | null;
-  onStart: (stage: number) => void;
-  onEnd: () => void;
+  onStart: (stage: number) => Promise<boolean>;
+  onEnd: () => Promise<boolean>;
   onToggleVisibility: () => void;
-  onSetEventStatus: (status: "live" | "finished") => void;
+  onSetEventStatus: (status: "live" | "finished") => Promise<boolean>;
+  onRestartEvent: () => Promise<boolean>;
+  onEventStateChanged: () => Promise<void>;
   onCopyProjectorLink: () => void;
   onRotateProjectorLink: () => void;
   onToggleRegistration: () => void;
@@ -42,6 +45,8 @@ export default function EventFlowPanel({
   onEnd,
   onToggleVisibility,
   onSetEventStatus,
+  onRestartEvent,
+  onEventStateChanged,
   onCopyProjectorLink,
   onRotateProjectorLink,
   onToggleRegistration,
@@ -50,19 +55,39 @@ export default function EventFlowPanel({
   const [cutoffDialogStage, setCutoffDialogStage] = useState<number | null>(null);
   const [expandedOverrides, setExpandedOverrides] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [pendingStageAction, setPendingStageAction] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
-    adminGetStageOverview().then(setOverview).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh, eventState?.current_stage, eventState?.status, eventState?.current_round]);
-
-  function flash(msg: string) {
+  const flash = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
-  }
+  }, []);
+
+  const refresh = useCallback(async (): Promise<AdminStageOverview | null> => {
+    try {
+      const data = await adminGetStageOverview();
+      setOverview(data);
+      return data;
+    } catch (e) {
+      flash(e instanceof AdminError ? e.message : "Failed to refresh stage status");
+      return null;
+    }
+  }, [flash]);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminGetStageOverview()
+      .then((data) => {
+        if (!cancelled) setOverview(data);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          flash(e instanceof AdminError ? e.message : "Failed to refresh stage status");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [flash, eventState?.current_stage, eventState?.status, eventState?.current_round, eventState?.updated_at]);
 
   async function handleRelease(stage: number) {
     if (!confirm(`Release Stage ${stage}? Teams that qualify will see it immediately.`)) return;
@@ -80,7 +105,7 @@ export default function EventFlowPanel({
     try {
       await adminUndoCutoff(afterStage);
       flash("Cutoff undone");
-      refresh();
+      await Promise.all([onEventStateChanged(), refresh()]);
     } catch (e) {
       flash(e instanceof AdminError ? e.message : "Failed to undo cutoff");
     }
@@ -96,10 +121,73 @@ export default function EventFlowPanel({
     }
   }
 
+  async function handleStart(stage: number) {
+    setPendingStageAction(`start-${stage}`);
+    try {
+      if (await onStart(stage)) await refresh();
+    } finally {
+      setPendingStageAction(null);
+    }
+  }
+
+  async function handleEnd() {
+    setPendingStageAction("end");
+    try {
+      if (!(await onEnd())) return;
+      const updatedOverview = await refresh();
+      if (updatedOverview?.stages.some((stage) => stage.status === "live")) {
+        const stillLive = updatedOverview.stages
+          .filter((stage) => stage.status === "live")
+          .map((stage) => stage.stage);
+        flash(`Stages ${stillLive.join(", ")} are still live. The database did not confirm the end action.`);
+      }
+    } finally {
+      setPendingStageAction(null);
+    }
+  }
+
+  async function handleEventStatus(status: "live" | "finished") {
+    setPendingStageAction(`event-${status}`);
+    try {
+      if (!(await onSetEventStatus(status))) return;
+    } finally {
+      setPendingStageAction(null);
+    }
+  }
+
+  async function handleRestartEvent() {
+    if (!confirm("Restart the event from Stage 1? All stages return to not-started and cutoffs are cleared. Team registrations, scores, submissions, and shortlist decisions are preserved.")) return;
+    setPendingStageAction("event-restart");
+    try {
+      if (await onRestartEvent()) await refresh();
+    } finally {
+      setPendingStageAction(null);
+    }
+  }
+
+  async function handleCutoffApplied() {
+    await Promise.all([onEventStateChanged(), refresh()]);
+  }
+
   const stageStatus = (n: number) => overview?.stages.find((s) => s.stage === n)?.status ?? "not_released";
   const completedCount = (n: number) => overview?.teams.filter((t) => t.access[String(n)]?.state === "COMPLETED").length ?? 0;
   const totalCount = overview?.teams.length ?? 0;
+  const canRestartAllStages =
+    eventState?.status === "finished" ||
+    (eventState?.status === "live" &&
+      !overview?.stages.some((stage) => stage.status === "live") &&
+      overview?.stages.some((stage) => stage.stage === 4 && stage.status === "ended"));
   const cutoffApplied = (afterStage: number) => (eventState?.current_round ?? 0) >= afterStage;
+  const hasShortlistedTeams = overview?.teams.some(
+    (team) => team.access["3"]?.reason !== "not_shortlisted",
+  ) ?? false;
+  const canStart = (stage: number) =>
+    stageStatus(stage) === "released" &&
+    eventState?.status !== "finished" &&
+    !overview?.stages.some((item) => item.status === "live") &&
+    (stage === 1 || stageStatus(stage - 1) === "ended") &&
+    (stage !== 3 || hasShortlistedTeams) &&
+    (stage !== 4 || cutoffApplied(3));
 
   return (
     <section className="p-4 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-md relative">
@@ -158,13 +246,21 @@ export default function EventFlowPanel({
                     </button>
                   )}
                   {stageStatus(step.stage) === "released" && (
-                    <button onClick={() => onStart(step.stage)} className="text-[9px] px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 uppercase font-bold">
+                    <button
+                      onClick={() => handleStart(step.stage)}
+                      disabled={!canStart(step.stage) || pendingStageAction !== null}
+                      className="text-[9px] px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 uppercase font-bold disabled:opacity-20"
+                    >
                       Start
                     </button>
                   )}
                   {stageStatus(step.stage) === "live" && (
-                    <button onClick={onEnd} className="text-[9px] px-2 py-1 rounded bg-red-500/20 text-red-300 uppercase font-bold">
-                      End
+                    <button
+                      onClick={handleEnd}
+                      disabled={pendingStageAction !== null}
+                      className="text-[9px] px-2 py-1 rounded bg-red-500/20 text-red-300 uppercase font-bold disabled:opacity-20"
+                    >
+                      {pendingStageAction === "end" ? "Ending…" : "End"}
                     </button>
                   )}
                 </div>
@@ -196,7 +292,7 @@ export default function EventFlowPanel({
             {step.kind === "final" && (
               <div className="flex flex-col items-center gap-2 px-2">
                 <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-[9px] font-bold ${eventState?.status === "finished" ? "bg-white text-black border-white" : "border-white/15 text-white/30"}`}>
-                  🏁
+                  <Flag className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-[9px] text-white/30">Final</span>
               </div>
@@ -212,9 +308,43 @@ export default function EventFlowPanel({
           admin action via the stepper above. */}
       <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-lg bg-white/[0.02] border border-white/5">
         <span className="text-[10px] uppercase tracking-wider text-white/40 mr-1">Event</span>
+        {eventState?.status === "live" && (
+          <span className="text-[10px] uppercase tracking-wider text-emerald-300" aria-live="polite">Event Live</span>
+        )}
+        {eventState?.status === "paused" && (
+          <span className="text-[10px] uppercase tracking-wider text-amber-300" aria-live="polite">Event Paused</span>
+        )}
+        {eventState?.status === "finished" && (
+          <span className="text-[10px] uppercase tracking-wider text-white/60" aria-live="polite">Event Finished</span>
+        )}
         <span className="flex-1" />
-        <button onClick={() => onSetEventStatus("live")} disabled={eventState?.status === "live"} className="px-3 py-1.5 rounded border border-emerald-500/30 text-emerald-300 text-[10px] uppercase tracking-wider hover:bg-emerald-500/10 disabled:opacity-30 transition-colors">Event Live</button>
-        <button onClick={() => onSetEventStatus("finished")} disabled={eventState?.status === "finished"} className="px-3 py-1.5 rounded border border-white/15 text-[10px] uppercase tracking-wider hover:bg-white/5 disabled:opacity-30 transition-colors">Event Finished</button>
+        {canRestartAllStages && (
+          <button
+            onClick={handleRestartEvent}
+            disabled={pendingStageAction !== null}
+            className="px-3 py-1.5 rounded border border-emerald-500/30 text-emerald-300 text-[10px] uppercase tracking-wider hover:bg-emerald-500/10 disabled:opacity-30 transition-colors"
+          >
+            {pendingStageAction === "event-restart" ? "Restarting…" : "Restart All Stages"}
+          </button>
+        )}
+        {(eventState?.status === "upcoming" || eventState?.status === "paused") && (
+          <button
+            onClick={() => handleEventStatus("live")}
+            disabled={pendingStageAction !== null}
+            className="px-3 py-1.5 rounded border border-emerald-500/30 text-emerald-300 text-[10px] uppercase tracking-wider hover:bg-emerald-500/10 disabled:opacity-30 transition-colors"
+          >
+            {pendingStageAction === "event-live" ? "Starting…" : eventState.status === "paused" ? "Resume Event" : "Start Event"}
+          </button>
+        )}
+        {eventState?.status === "live" && (
+          <button
+            onClick={() => handleEventStatus("finished")}
+            disabled={pendingStageAction !== null}
+            className="px-3 py-1.5 rounded border border-red-500/30 text-red-300 text-[10px] uppercase tracking-wider hover:bg-red-500/10 disabled:opacity-30 transition-colors"
+          >
+            {pendingStageAction === "event-finished" ? "Ending…" : "End Event"}
+          </button>
+        )}
       </div>
 
       {/* Leaderboard visibility + projector link */}
@@ -295,7 +425,7 @@ export default function EventFlowPanel({
         <CutoffDialog
           config={CUTOFFS.find((c) => c.afterStage === cutoffDialogStage)!}
           onClose={() => setCutoffDialogStage(null)}
-          onApplied={refresh}
+          onApplied={handleCutoffApplied}
         />
       )}
     </section>

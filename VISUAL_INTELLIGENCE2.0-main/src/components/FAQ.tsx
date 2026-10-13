@@ -12,7 +12,7 @@ interface FAQItem {
 const FAQS: FAQItem[] = [
   {
     q: "Who can take part?",
-    a: "First-year students. Teams of 4–5 members.",
+    a: "First-year students. Teams of exactly 4 members.",
   },
   {
     q: "What does it cost?",
@@ -29,7 +29,7 @@ const FAQS: FAQItem[] = [
   },
   {
     q: "When and where?",
-    a: "14 October (Wednesday), 2:00 – 4:00 PM at the DSCS Gallery Hall.",
+    a: "14 October (Wednesday), 2:00 – 4:00 PM at the Food Processing Gallery Hall.",
   },
 ];
 

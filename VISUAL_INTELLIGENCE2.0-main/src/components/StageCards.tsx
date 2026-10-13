@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { Check } from "lucide-react";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { loadSession } from "@/lib/registration";
 import { getStageAccess } from "@/lib/stageAccess";
 import type { StageAccessEntry } from "@/lib/supabase";
@@ -28,12 +30,34 @@ export default function StageCards() {
 
   useEffect(() => {
     const session = loadSession();
-    getStageAccess(session?.teamCode, session?.regNo).then(setStages);
+    const refresh = () => {
+      getStageAccess(session?.teamCode, session?.regNo).then(setStages);
+    };
+    refresh();
+
+    if (!isSupabaseConfigured()) return;
+    const supabase = getSupabaseClient();
+    const channel = supabase
+      .channel("home-stage-status")
+      .on("postgres_changes", { event: "*", schema: "public", table: "event_state" }, refresh)
+      .subscribe();
+    const poll = setInterval(refresh, 10000);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(poll);
+    };
   }, []);
 
   const displayStages: StageAccessEntry[] = stages.length > 0 
     ? stages 
-    : [1, 2, 3, 4].map((s) => ({ stage: s, slug: "", name: null, state: "LOCKED" as const, reason: "not_released" }));
+    : [1, 2, 3, 4].map((s) => ({
+        stage: s,
+        slug: "",
+        name: null,
+        state: "LOCKED" as const,
+        reason: "not_released",
+        stage_status: "not_released" as const,
+      }));
 
   return (
     <section 
@@ -51,6 +75,7 @@ export default function StageCards() {
           {displayStages.map((stage, idx) => {
             const isLive = stage.state === "LIVE";
             const isCompleted = stage.state === "COMPLETED";
+            const isEnded = stage.stage_status === "ended";
             const accessible = isLive || isCompleted;
             const stageName = stage.name ?? `Stage ${stage.stage}`;
 
@@ -84,9 +109,13 @@ export default function StageCards() {
                       <span className="w-1.5 h-1.5 rounded-full bg-brand-bg animate-pulse" />
                       Live
                     </span>
+                  ) : isEnded ? (
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-brand-fg/30 text-brand-fg/80 text-[12px] font-sans uppercase tracking-[0.2em] font-medium">
+                      Stage Ended
+                    </span>
                   ) : isCompleted ? (
                     <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-brand-fg/30 text-brand-fg/80 text-[12px] font-sans uppercase tracking-[0.2em] font-medium">
-                      <span className="text-xs">✓</span> Completed
+                      <Check className="w-3.5 h-3.5" /> Completed
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-brand-fg/20 text-brand-fg/60 text-[12px] font-sans uppercase tracking-[0.2em]">

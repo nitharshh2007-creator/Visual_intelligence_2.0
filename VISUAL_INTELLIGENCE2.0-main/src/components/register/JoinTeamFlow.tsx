@@ -38,7 +38,6 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
   const [year, setYear] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [joinError, setJoinError] = useState<RegistrationErrorCode | null>(null);
-  const [joinedTeam, setJoinedTeam] = useState<RegistrationTeam | null>(null);
 
   async function handleFind(codeArg?: string) {
     const target = codeArg ?? code;
@@ -85,7 +84,7 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
       if (result.error) {
         setJoinError(result.error);
       } else if (result.team) {
-        setJoinedTeam(result.team);
+        onJoined(result.team);
       }
     } catch (err) {
       setJoinError((err as { code?: RegistrationErrorCode }).code ?? "NETWORK_ERROR");
@@ -94,40 +93,6 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
     }
   }
 
-  const lobbyLink = typeof window !== "undefined" && joinedTeam
-    ? `${window.location.origin}/register/${joinedTeam.inviteCode}`
-    : joinedTeam
-    ? `/register/${joinedTeam.inviteCode}`
-    : "";
-
-  // ── Success screen ──
-  if (joinedTeam) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.76, 0, 0.24, 1] }}
-        className="max-w-md mx-auto text-center"
-      >
-        <h1 className="font-serif text-4xl mb-3">You&apos;re in!</h1>
-        <p className="font-sans text-sm text-brand-fg/60 mb-8">
-          Welcome to <span className="text-brand-fg font-medium">{joinedTeam.name}</span>. Bookmark your lobby link to check back in:
-        </p>
-        <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-brand-fg/15 bg-brand-light mb-8">
-          <code className="flex-1 text-xs font-mono text-brand-fg/70 truncate text-left">{lobbyLink}</code>
-          <button
-            onClick={() => navigator.clipboard?.writeText(lobbyLink)}
-            className="text-[10px] font-sans uppercase tracking-wider text-brand-accent-strong flex-shrink-0"
-          >
-            Copy
-          </button>
-        </div>
-        <button onClick={() => onJoined(joinedTeam)} className="luxury-button w-full">
-          View My Lobby
-        </button>
-      </motion.div>
-    );
-  }
 
   return (
     <motion.div
@@ -155,7 +120,7 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
 
       {lookupError && (
         <div className="text-center mt-3">
-          <p className="text-xs font-sans text-red-600">{ERROR_MESSAGES[lookupError]}</p>
+          <p role="alert" className="text-xs font-sans text-red-600">{ERROR_MESSAGES[lookupError]}</p>
           {lookupError === "INVALID_CODE" && (
             <Link href="/register" className="text-xs font-sans uppercase tracking-wider text-brand-accent-strong hover:underline mt-2 inline-block">
               Register a new team instead →
@@ -173,7 +138,10 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
         >
           <p className="font-serif text-2xl text-brand-fg mb-1">{preview.name}</p>
           <p className="text-xs font-sans text-brand-fg/60">
-            {preview.memberCount}/{TEAM_MAX} slots filled · captain {preview.captainFirstName || "—"}
+            {preview.memberCount > TEAM_MAX
+              ? `${preview.memberCount} members · Team full`
+              : `${preview.memberCount}/${TEAM_MAX} slots filled`}
+            {" · "}captain {preview.captainFirstName || "—"}
           </p>
         </motion.div>
       )}
@@ -191,6 +159,7 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
           className="space-y-4 mt-6"
         >
           <input
+            aria-label="Your name"
             value={memberName}
             onChange={(e) => setMemberName(e.target.value)}
             placeholder="Your full name"
@@ -198,6 +167,7 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
             className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
           />
           <input
+            aria-label="Registration number"
             value={regNo}
             onChange={(e) => setRegNo(e.target.value)}
             placeholder="Registration number (e.g. 24CS045)"
@@ -206,6 +176,7 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
           />
           <input
             type="email"
+            aria-label="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@college.edu"
@@ -215,13 +186,15 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <input
               type="tel"
-              value={phone}
+              aria-label="Phone (optional)"
+            value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone (optional)"
               className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
             />
             <input
-              value={section}
+              aria-label="Section (optional)"
+            value={section}
               onChange={(e) => setSection(e.target.value)}
               placeholder="Section (optional)"
               className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
@@ -229,6 +202,7 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
           </div>
           <input
             type="number"
+            aria-label="Year of study (optional)"
             value={year}
             onChange={(e) => setYear(e.target.value)}
             placeholder="Year of study (optional)"

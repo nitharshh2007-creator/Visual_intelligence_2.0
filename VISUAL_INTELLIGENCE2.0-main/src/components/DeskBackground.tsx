@@ -1,28 +1,10 @@
 /* eslint-disable */
 // @ts-nocheck
 'use client';
-/**
- * DeskBackground — 3D "thinker at the desk" background (replaces MeshBackground).
- *
- * A fixed full-viewport canvas BEHIND the content (z-index -1, pointer-events none). Plain Canvas 2D with a tiny
- * hand-written 3D projection: no WebGL, no libraries. It draws nothing but the background.
- *
- * Behaviour
- *  - A person sits at a desk and computer. The thought above the monitor changes every 3.8 s (PROMPT, QUALITY,
- *    INTENT, OUTPUT, CONTEXT, REFINE, 4 STAGES, WIN). The person types, leans back and thinks, sips from the mug,
- *    and celebrates on WIN.
- *  - The camera orbits 360 degrees around the desk as the page scrolls (complete when the [data-desk-end] element
- *    reaches the top of the viewport, else at the bottom of the page).
- *  - Placement per section via data attributes on elements marked data-desk:
- *      data-desk-x="0.72"     horizontal centre, 0 = left edge, 1 = right edge
- *      data-desk-y="0.55"     vertical centre as a fraction of the viewport height
- *      data-desk-a="1"        opacity 0..1 (0 hides the scene and stops drawing)
- *      data-desk-zoom="1"     size multiplier
- *    Values ease between sections. On mobile (<760px) the scene is centred and faint automatically.
- *  - Sections marked data-bg="dark" get the dark palette: the scene is drawn twice, clipped along the section edge.
- *  - Colours are read live from the page (nothing hard-coded): see the *Selector props.
- *  - Stable by design: no randomness, no layout reads inside the frame loop, canvas ignores small height-only
- *    resizes (mobile URL bar), pauses when the tab is hidden, honours prefers-reduced-motion, cleans up on unmount.
+/** Original desk illustration, rendered on demand inside the hero.
+ * No scroll or pointer listeners and no idle animation loop.
+ * Geometry and original palette are retained; resize/visibility/font changes
+ * invalidate a single frame. The canvas never receives pointer events.
  */
 import { useEffect, useRef } from 'react';
 
@@ -44,14 +26,13 @@ export default function DeskBackground({
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
-    if (typeof CSS !== 'undefined' && CSS.supports && CSS.supports('height', '100lvh')) canvas.style.height = '100lvh';
     return initDeskBackground(canvas, { accentSelector, inkSelector, sectionSelector, endSelector, darkSelector, accentDarkSelector });
   }, [accentSelector, inkSelector, sectionSelector, endSelector, darkSelector, accentDarkSelector]);
   return (
     <canvas
       ref={ref}
       aria-hidden="true"
-      style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', zIndex, pointerEvents: 'none' }}
+      style={{ display: 'block', width: '100%', height: '100%', pointerEvents: 'none' }}
     />
   );
 }
@@ -431,9 +412,10 @@ export function initDeskBackground(canvas, opts) {
   }, opts || {});
 
   var ctx = canvas.getContext('2d');
-  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!ctx) return;
+  var visible = false;
   var cleanups = [], raf = 0, W = 0, H = 0, dpr = 1, disposed = false;
-  var clock = 1.9, lastTs = 0, lastDraw = 0;
+
 
   /* --- colours, read live from the page --- */
   var cc = document.createElement('canvas'); cc.width = cc.height = 1;
@@ -473,40 +455,12 @@ export function initDeskBackground(canvas, opts) {
     fonts.sans = getComputedStyle(document.body).fontFamily || 'sans-serif';
   }
 
-  /* --- layout cache (document coordinates; no layout reads in the frame loop) --- */
-  var secs = [], darks = [], docH = 1, span = 1;
-  function num(el, k, d) { var v = parseFloat(el.dataset[k]); return isFinite(v) ? v : d; }
-  function measure() {
-    var sy = window.scrollY, vh = window.innerHeight;
-    docH = Math.max(document.documentElement.scrollHeight, vh + 1);
-    secs = Array.prototype.map.call(document.querySelectorAll(opts.sectionSelector), function (el) {
-      var r = el.getBoundingClientRect();
-      return { mid: r.top + sy + r.height / 2, x: num(el, 'deskX', 0.72), y: num(el, 'deskY', 0.55), a: num(el, 'deskA', 1), z: num(el, 'deskZoom', 1) };
-    }).sort(function (a, b) { return a.mid - b.mid; });
-    darks = Array.prototype.map.call(document.querySelectorAll(opts.darkSelector), function (el) {
-      var r = el.getBoundingClientRect(); return { top: r.top + sy, bottom: r.bottom + sy, left: r.left, right: r.right };
-    });
-    var end = document.querySelector(opts.endSelector);
-    span = end ? Math.max(1, end.getBoundingClientRect().top + sy) : Math.max(1, docH - vh);
-    span = Math.min(span, Math.max(1, docH - vh));
-  }
-  function target() {
-    var yc = window.scrollY + window.innerHeight * 0.5, n = secs.length;
-    if (!n) return { x: 0.72, y: 0.55, a: 1, z: 1 };
-    if (yc <= secs[0].mid) return secs[0];
-    if (yc >= secs[n - 1].mid) return secs[n - 1];
-    for (var i = 0; i < n - 1; i++) if (yc < secs[i + 1].mid) {
-      var f = sm(secs[i].mid, secs[i + 1].mid, yc), a = secs[i], b = secs[i + 1];
-      return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, a: a.a + (b.a - a.a) * f, z: a.z + (b.z - a.z) * f };
-    }
-    return secs[n - 1];
-  }
-
+  var darks = [];
   /* --- stable canvas size: ignore small height-only changes (mobile URL bar) --- */
   function resize(force) {
     var w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return;
     if (!force && w === W && Math.abs(h - H) < 160) return;
-    dpr = Math.min(window.devicePixelRatio || 1, w < 760 ? 1.5 : 2);
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); W = w; H = h;
   }
 
@@ -514,19 +468,18 @@ export function initDeskBackground(canvas, opts) {
   var STAT = []; chair(STAT); desk(STAT);
   monitor(STAT, function (c, t) { screenUI(c, t, fonts); });
   STAT = STAT.concat(box([0, 1.18, -0.5 - 0.0175 - 0.003], [0.1, 0.1, 0.004], 'accent', [1, 1, 1], 0.4));
-  var PROG = 0, cur = { x: 0.72, y: 0.55, a: 1, z: 1 };
-  function progress() { return cl(window.scrollY / span, 0, 1); }
+  var PROG = 0, cur = { x: 0.5, y: 0.46, a: 1, z: 1 };
 
   function draw(t) {
     if (!W || !H) return;
-    var mob = W < 760, base = cur.a * (mob ? 0.55 : 1);
+    var base = 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
     if (base < 0.01) return;
     ctx.lineJoin = 'round';
-    var p = PROG, sy = window.scrollY;
+    var p = PROG, sy = 0;
     var cam = camYaw({ yaw: -0.62 + TAU * p, pitch: keysAt(K.pitch, p), dist: 13, fov: 0.27, t: [0.05, keysAt(K.ty, p), -0.05] });
-    var zoom = keysAt(K.zoom, p) * (mob ? 0.62 : 1) * Math.min(1, Math.max(0.75, H / 900) * 1.05) * cur.z;
-    var P = makeProj(cam, W, H, zoom, W * (mob ? 0.5 : cur.x), H * (mob ? 0.62 : cur.y));
+    var zoom = 1.05;
+    var P = makeProj(cam, W, H, zoom, W * cur.x, H * cur.y);
 
     var F = STAT.slice(), ps = poseState(t), pr = person2(F, t, ps);
     var pp = [0, 2.18, -0.5], psz = 0.95, th = theme(t);
@@ -589,33 +542,31 @@ export function initDeskBackground(canvas, opts) {
     if (vd.length) { ctx.save(); ctx.beginPath(); vd.forEach(function (r) { ctx.rect(r[0], r[1], r[2], r[3]); }); ctx.clip(); paint(pals.dark); ctx.restore(); }
   }
 
-  /* --- loop --- */
-  function tick(ts) {
-    if (disposed) return;
-    raf = requestAnimationFrame(tick);
-    var dt = Math.min(0.1, (ts - (lastTs || ts)) / 1000); lastTs = ts;
-    if (document.hidden) return;
-    var mob = W < 760; if (mob && ts - lastDraw < 32) return; lastDraw = ts;
-    clock += dt;
-    PROG += (progress() - PROG) * (1 - Math.exp(-dt * 7));
-    var tg = target(), k = 1 - Math.exp(-dt * 5);
-    cur.x += (tg.x - cur.x) * k; cur.y += (tg.y - cur.y) * k; cur.a += (tg.a - cur.a) * k; cur.z += (tg.z - cur.z) * k;
-    draw(clock);
+  // Coalesce invalidations; stop completely while off-screen or in a hidden tab.
+  function requestDraw() {
+    if (disposed || !visible || document.hidden || raf) return;
+    raf = requestAnimationFrame(function () {
+      raf = 0;
+      if (disposed || !visible || document.hidden) return;
+      resize(true); readPalettes(); draw(28.4);
+    });
   }
-  function drawStatic() { PROG = progress(); var tg = target(); cur = { x: tg.x, y: tg.y, a: tg.a, z: tg.z }; draw(1.9); }
-
-  function refresh() { readPalettes(); measure(); resize(true); PROG = progress(); var tg = target(); cur = { x: tg.x, y: tg.y, a: tg.a, z: tg.z }; if (reduce) drawStatic(); }
-  function on(t, f, o) { window.addEventListener(t, f, o); cleanups.push(function () { window.removeEventListener(t, f, o); }); }
-
-  refresh();
-  on('resize', function () { resize(false); measure(); if (reduce) drawStatic(); });
-  on('load', refresh);
-  if (reduce) on('scroll', drawStatic, { passive: true });
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (!disposed) refresh(); });
-  var ro = new ResizeObserver(function () { measure(); resize(false); });
-  ro.observe(document.body); ro.observe(canvas); cleanups.push(function () { ro.disconnect(); });
-  var again = setTimeout(refresh, 1200); cleanups.push(function () { clearTimeout(again); });
-  if (!reduce) raf = requestAnimationFrame(tick);
-
-  return function dispose() { disposed = true; cancelAnimationFrame(raf); cleanups.forEach(function (f) { f(); }); };
+  var observer = new IntersectionObserver(function (entries) {
+    visible = entries[0].isIntersecting;
+    if (visible) requestDraw();
+    else { cancelAnimationFrame(raf); raf = 0; }
+  });
+  observer.observe(canvas);
+  var ro = new ResizeObserver(requestDraw);
+  ro.observe(canvas);
+  function visibilityChanged() {
+    if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+    else requestDraw();
+  }
+  document.addEventListener('visibilitychange', visibilityChanged);
+  if (document.fonts) document.fonts.ready.then(requestDraw);
+  return function dispose() {
+    disposed = true; cancelAnimationFrame(raf); observer.disconnect(); ro.disconnect();
+    document.removeEventListener('visibilitychange', visibilityChanged);
+  };
 }

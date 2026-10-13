@@ -35,7 +35,7 @@ export default function FinalCTA() {
           className="flex flex-col items-start lg:items-end gap-6"
         >
           <p className="font-serif text-[clamp(24px,3vw,36px)] text-brand-bg leading-tight">
-            DSCS Gallery Hall
+            Food Processing Gallery Hall
           </p>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-5 sm:gap-7 w-full sm:w-auto">

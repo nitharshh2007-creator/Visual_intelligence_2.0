@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { Folder, FileText, X, Check, AlertTriangle } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase";
 
 export interface StageRecord {
@@ -14,7 +15,7 @@ export interface StageRecord {
   overview_md?: string | null;
   rules_md?: string | null;
   roles_md?: string | null;
-  rubric?: { name: string; max_points?: number }[] | null;
+  rubric?: { name: string; max_points?: number; round?: number }[] | null;
   phases?: { name: string; minutes: number; accepts_submission: boolean; releases: string[] }[] | null;
   status?: string | null;
 }
@@ -337,6 +338,8 @@ export default function AdminStagesClient({
           const stageSecret = secrets.find((s) => s.stage_slug === stage.slug);
           const isOverviewDone = !!stage.overview_md;
           const isRubricDone = !!stage.rubric && stage.rubric.length > 0;
+          const rubricCriterionCount = new Set(stage.rubric?.map((criterion) => criterion.name) ?? []).size;
+          const rubricRoundCount = Math.max(1, ...(stage.rubric?.map((criterion) => criterion.round ?? 1) ?? []));
           const isPasswordSet = stage.slug === "bugx-hacker" ? !!stageSecret?.bugx_password_hash : true;
 
           return (
@@ -397,7 +400,9 @@ export default function AdminStagesClient({
                   <div className="flex items-center justify-between">
                     <span className="text-zinc-400">Rubric Criteria</span>
                     <span className={isRubricDone ? "text-zinc-200" : "text-zinc-600"}>
-                      {isRubricDone ? `✓ ${stage.rubric?.length} criteria` : "Pending"}
+                      {isRubricDone
+                        ? `✓ ${rubricCriterionCount} criteria${rubricRoundCount > 1 ? ` · ${rubricRoundCount} rounds` : ""}`
+                        : "Pending"}
                     </span>
                   </div>
 
@@ -442,8 +447,8 @@ export default function AdminStagesClient({
                           className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-between gap-2 text-xs font-mono group hover:bg-white/[0.05] transition-colors"
                         >
                           <div className="flex items-center gap-2 truncate">
-                            <span className="text-zinc-500 text-xs">
-                              {asset.kind === "file" ? "📁" : "📝"}
+                            <span className="text-zinc-500 text-xs flex items-center">
+                              {asset.kind === "file" ? <Folder className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                             </span>
                             <span className="text-zinc-200 truncate" title={asset.label || "Asset"}>
                               {asset.label || "Asset"}
@@ -464,10 +469,11 @@ export default function AdminStagesClient({
                             )}
                             <button
                               onClick={() => handleDeleteAsset(asset)}
-                              className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors"
+                              className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors p-1"
                               title="Delete asset"
+                              aria-label="Delete asset"
                             >
-                              ✕
+                              <X className="w-3 h-3" />
                             </button>
                           </div>
                         </div>
@@ -523,9 +529,10 @@ export default function AdminStagesClient({
               </div>
               <button
                 onClick={() => setUploadModalOpen(false)}
-                className="text-zinc-500 hover:text-white text-sm p-1 cursor-pointer"
+                className="text-zinc-500 hover:text-white p-1 cursor-pointer"
+                aria-label="Close"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -557,24 +564,26 @@ export default function AdminStagesClient({
                   <button
                     type="button"
                     onClick={() => setUploadKind("file")}
-                    className={`py-2 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                    className={`py-2 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
                       uploadKind === "file"
                         ? "bg-white/10 border-white/30 text-white"
                         : "bg-white/[0.02] border-white/[0.08] text-zinc-400 hover:text-white"
                     }`}
                   >
-                    📁 Binary File (PDF, HTML, Image)
+                    <Folder className="w-3.5 h-3.5" />
+                    <span>Binary File (PDF, HTML, Image)</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUploadKind("text")}
-                    className={`py-2 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                    className={`py-2 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
                       uploadKind === "text"
                         ? "bg-white/10 border-white/30 text-white"
                         : "bg-white/[0.02] border-white/[0.08] text-zinc-400 hover:text-white"
                     }`}
                   >
-                    📝 Text / Prompt Instructions
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Text / Prompt Instructions</span>
                   </button>
                 </div>
               </div>
@@ -619,8 +628,9 @@ export default function AdminStagesClient({
 
                     {selectedFile ? (
                       <div className="space-y-0.5">
-                        <div className="text-xs font-medium text-white">
-                          ✓ {selectedFile.name}
+                        <div className="text-xs font-medium text-white flex items-center justify-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>{selectedFile.name}</span>
                         </div>
                         <div className="text-[11px] text-zinc-400">
                           {(selectedFile.size / 1024).toFixed(1)} KB · Click to change file

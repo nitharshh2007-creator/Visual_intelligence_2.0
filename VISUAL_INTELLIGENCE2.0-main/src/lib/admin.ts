@@ -9,7 +9,7 @@
 // which key is used.
 
 import { getSupabaseClient } from "./supabase";
-import type { AdminTeamDetail, ScoreAuditRow, AdminStageOverview, CutoffPreview } from "./supabase";
+import type { AdminTeamDetail, ScoreAuditRow, AdminStageOverview, CutoffPreview, ShortlistConfig, PreliminaryScoreRow, EventStateRow } from "./supabase";
 
 export type AdminErrorCode =
   | "NOT_ADMIN"
@@ -20,6 +20,8 @@ export type AdminErrorCode =
   | "NAME_TAKEN"
   | "STAGE_NOT_ENDED"
   | "ELIMINATED"
+  | "BELOW_CUTOFF"
+  | "NOT_SHORTLISTED"
   | "NOT_LIVE"
   | "UNKNOWN";
 
@@ -45,6 +47,8 @@ function mapAdminErrorCode(sqlstate: string | undefined): AdminErrorCode {
     case "VI020": return "ELIMINATED";
     case "VI021": return "STAGE_LOCKED";
     case "VI022": return "NOT_LIVE";
+    case "VI030": return "BELOW_CUTOFF";
+    case "VI031": return "NOT_SHORTLISTED";
     default: return "UNKNOWN";
   }
 }
@@ -111,8 +115,40 @@ export function adminExtend(seconds: number) {
 export function adminEndStage() {
   return callRpc(getSupabaseClient().rpc("admin_end_stage", {}));
 }
-export function adminSetEventStatus(status: "upcoming" | "live" | "paused" | "finished") {
-  return callRpc(getSupabaseClient().rpc("admin_set_event_status", { p_status: status }));
+export async function adminSetEventStatus(status: "upcoming" | "live" | "paused" | "finished"): Promise<EventStateRow> {
+  const supabase = getSupabaseClient();
+  await callRpc(supabase.rpc("admin_set_event_status", { p_status: status }));
+
+  const { data: savedState, error: savedStateError } = await supabase
+    .from("event_state")
+    .select("*")
+    .eq("id" as never, 1)
+    .single();
+
+  if (savedStateError) throw new AdminError(savedStateError.message, "UNKNOWN");
+  if (savedState.status !== status) {
+    throw new AdminError(`The database still reports the event as ${savedState.status}.`, "UNKNOWN");
+  }
+  return savedState;
+}
+// Resets every stage to released and clears the previous run's cutoffs
+// (migration 0029). The saved row is re-read so the caller only reports
+// success once the database confirms the reset.
+export async function adminRestartEvent(): Promise<EventStateRow> {
+  const supabase = getSupabaseClient();
+  await callRpc(supabase.rpc("admin_restart_event", {}));
+
+  const { data: savedState, error: savedStateError } = await supabase
+    .from("event_state")
+    .select("*")
+    .eq("id" as never, 1)
+    .single();
+
+  if (savedStateError) throw new AdminError(savedStateError.message, "UNKNOWN");
+  if (savedState.status !== "live" || savedState.current_stage !== 0 || savedState.current_round !== 0) {
+    throw new AdminError("The database did not confirm the event restart.", "UNKNOWN");
+  }
+  return savedState;
 }
 export function adminSetAnnouncement(text: string) {
   return callRpc(getSupabaseClient().rpc("admin_set_announcement", { p_text: text }));
@@ -136,6 +172,21 @@ export function adminSetScore(teamId: string, stage: number, points: number, not
   return callRpc(
     getSupabaseClient().rpc("admin_set_score", { p_team_id: teamId, p_stage: stage, p_points: points, p_note: note ?? null, p_force: force })
   );
+}
+export function adminSavePreliminaryScores(
+  teamId: string,
+  s1: number | null,
+  s2: number | null,
+  updateS1: boolean,
+  updateS2: boolean
+) {
+  return callRpc(getSupabaseClient().rpc("admin_save_preliminary_scores", {
+    p_team_id: teamId,
+    p_s1: s1,
+    p_s2: s2,
+    p_update_s1: updateS1,
+    p_update_s2: updateS2,
+  }));
 }
 export function adminUndoLastScore(teamId: string, stage: number) {
   return callRpc(getSupabaseClient().rpc("admin_undo_last_score", { p_team_id: teamId, p_stage: stage }));
@@ -257,15 +308,190 @@ export function adminSetBugxPassword(stageSlug: string, password: string) {
   return callRpc(getSupabaseClient().rpc("admin_set_bugx_password", { p_stage_slug: stageSlug, p_password: password }));
 }
 
+// ── Shortlisting ──
+
+export function adminGetShortlistConfig(): Promise<ShortlistConfig> {
+  return callRpc(getSupabaseClient().rpc("admin_get_shortlist_config", {}));
+}
+export function adminSetShortlistConfig(combinedCutoff: number, stage1Min = 0, stage2Min = 0) {
+  return callRpc(getSupabaseClient().rpc("admin_set_shortlist_config", {
+    p_combined_cutoff: combinedCutoff, p_stage1_min: stage1Min, p_stage2_min: stage2Min,
+  }));
+}
+export function adminGetPreliminaryScores(): Promise<PreliminaryScoreRow[]> {
+  return callRpc(getSupabaseClient().rpc("admin_get_preliminary_scores", {}));
+}
+export function adminSetShortlistDecision(
+  teamId: string, decision: "shortlisted" | "rejected" | "on_hold",
+  note?: string, forceOverride = false
+) {
+  return callRpc(getSupabaseClient().rpc("admin_set_shortlist_decision", {
+    p_team_id: teamId, p_decision: decision,
+    p_note: note ?? null, p_force_override: forceOverride,
+  }));
+}
+export function adminBulkShortlistTeams(teamIds: string[]) {
+  return callRpc(getSupabaseClient().rpc("admin_bulk_shortlist_teams", { p_team_ids: teamIds }));
+}
+
+// ── Master Team Directory & Dedicated Shortlisting Dashboards ──
+
+export interface MasterTeamRecord {
+  id: string;
+  name: string;
+  code: string;
+  status: string;
+  created_at: string;
+  member_count: number;
+  members: Array<{
+    id: string;
+    name: string;
+    reg_no: string;
+    email: string;
+    phone: string | null;
+    section: string | null;
+    year: number | null;
+    role: string;
+  }>;
+  scores: {
+    s1: number | null;
+    s2: number | null;
+    combined_prelim: number | null;
+    s3: number | null;
+    s4: number | null;
+    total: number;
+  };
+  level1_status: "participating" | "completed";
+  level2_status: "eligible" | "pending" | "completed";
+  shortlist_l3: {
+    decision: "shortlisted" | "rejected" | "on_hold" | "undecided";
+    is_override: boolean;
+    note: string | null;
+    decided_at: string | null;
+    decided_by: string | null;
+  };
+  shortlist_l4: {
+    qualified: boolean;
+    rank_at_cut: number | null;
+    total_at_cut: number | null;
+    reason: string | null;
+    decided_at: string | null;
+  };
+  current_level: 1 | 2 | 3 | 4;
+  overall_status: "participating" | "qualified" | "not_shortlisted" | "eliminated" | "completed" | "pending";
+  elimination_info: {
+    level: number | null;
+    reason: string | null;
+    decided_at: string | null;
+  } | null;
+}
+
+export interface MasterShortlistResponse {
+  teams: MasterTeamRecord[];
+  stats: {
+    total: number;
+    level1: number;
+    level2: number;
+    level3_shortlisted: number;
+    level4_finalists: number;
+    eliminated: number;
+  };
+  event_state: EventStateRow | null;
+  config: ShortlistConfig;
+}
+
+export async function adminGetMasterTeamDirectory(): Promise<MasterShortlistResponse> {
+  const res = await fetch("/api/admin/shortlist", { cache: "no-store" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new AdminError(err.error || "Failed to fetch master team directory", "UNKNOWN");
+  }
+  return res.json();
+}
+
+export async function adminSaveLevel3Shortlist(
+  selectedTeamIds: string[],
+  targetQuota = 10,
+  unselectedReasons?: Record<string, string>,
+  confirmedWarning = false
+) {
+  const res = await fetch("/api/admin/shortlist/level3", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      selected_team_ids: selectedTeamIds,
+      target_quota: targetQuota,
+      unselected_reasons: unselectedReasons,
+      confirmed_warning: confirmedWarning,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 422 && data.warning) {
+      return { warning: true, message: data.message, target_quota: data.target_quota, selected_count: data.selected_count };
+    }
+    throw new AdminError(data.error || "Failed to save Level 3 shortlist", "UNKNOWN");
+  }
+  return data;
+}
+
+export async function adminConfirmLevel4Finalists(finalistTeamIds: string[], notes?: string) {
+  const res = await fetch("/api/admin/shortlist/level4", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ finalist_team_ids: finalistTeamIds, notes }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new AdminError(data.error || "Failed to confirm Level 4 finalists", "UNKNOWN");
+  }
+  return data;
+}
+
+export async function adminRecordScoreEntry(
+  teamId: string,
+  stage: number,
+  points: number,
+  note?: string,
+  criteria?: Record<string, number>
+) {
+  const res = await fetch("/api/admin/scores/entry", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ team_id: teamId, stage, points, note, criteria }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new AdminError(data.error || "Failed to record score entry", "UNKNOWN");
+  }
+  return data;
+}
+
+export async function adminUpdateEliminationReason(teamId: string, stage: number, reason: string) {
+  const res = await fetch("/api/admin/eliminations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ team_id: teamId, stage, reason }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new AdminError(data.error || "Failed to update elimination reason", "UNKNOWN");
+  }
+  return data;
+}
+
 // ── Realtime subscription for admin lists (teams/members/scores/event_state) ──
 
 export function subscribeAdminRealtime(onChange: () => void): () => void {
   const supabase = getSupabaseClient();
+  const channelName = `admin-realtime-${Date.now()}`;
   const channel = supabase
-    .channel("admin-realtime")
+    .channel(channelName)
     .on("postgres_changes", { event: "*", schema: "public", table: "teams" }, onChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "members" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "team_members" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "scores" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "qualifiers" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "shortlist" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "event_state" }, onChange)
     .subscribe();
 
@@ -273,3 +499,4 @@ export function subscribeAdminRealtime(onChange: () => void): () => void {
     supabase.removeChannel(channel);
   };
 }
+

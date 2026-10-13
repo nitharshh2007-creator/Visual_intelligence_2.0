@@ -56,16 +56,16 @@ function InnerAdminLayout({ children }: { children: React.ReactNode }) {
   }, [pathname, isLoginPage, router]);
 
   if (isLoginPage) {
-    return <div className="min-h-screen bg-black/60 backdrop-blur-2xl text-white">{children}</div>;
+    return <div className="min-h-screen bg-[#191818] text-white">{children}</div>;
   }
 
   return (
-    <div className="min-h-screen bg-black/60 backdrop-blur-2xl text-white font-mono">
+    <div className="min-h-screen bg-[#191818] text-white font-mono">
       {gate === "ok" && (
         <nav className="border-b border-white/10 bg-white/[0.03] backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-6">
-              <span className="font-sans font-bold uppercase tracking-[0.15em] text-sm bg-gradient-to-r from-blue-400 via-cyan-300 to-emerald-300 bg-clip-text text-transparent">
+              <span className="font-sans font-bold uppercase tracking-[0.15em] text-sm text-[#e9adb5]">
                 Control Room
               </span>
               <div className="hidden md:flex items-center gap-4 text-[11px] uppercase tracking-wider text-white/50">
@@ -91,7 +91,13 @@ function InnerAdminLayout({ children }: { children: React.ReactNode }) {
                   href="/admin/teams"
                   className={`hover:text-white transition-colors ${pathname.startsWith("/admin/teams") ? "text-white font-bold" : ""}`}
                 >
-                  Teams
+                  Teams & Shortlisting
+                </Link>
+                <Link
+                  href="/admin/cyber-themes"
+                  className={`hover:text-white transition-colors ${pathname.startsWith("/admin/cyber-themes") ? "text-white font-bold" : ""}`}
+                >
+                  Cyber Themes
                 </Link>
               </div>
             </div>
@@ -128,7 +134,13 @@ function InnerAdminLayout({ children }: { children: React.ReactNode }) {
               href="/admin/teams"
               className={`hover:text-white transition-colors whitespace-nowrap ${pathname.startsWith("/admin/teams") ? "text-white font-bold" : ""}`}
             >
-              Teams
+              Teams & Shortlisting
+            </Link>
+            <Link
+              href="/admin/cyber-themes"
+              className={`hover:text-white transition-colors whitespace-nowrap ${pathname.startsWith("/admin/cyber-themes") ? "text-white font-bold" : ""}`}
+            >
+              Cyber Themes
             </Link>
           </div>
         </nav>
@@ -173,7 +185,7 @@ function InnerAdminLayout({ children }: { children: React.ReactNode }) {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black/60 backdrop-blur-2xl text-white">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#191818] text-white">Loading...</div>}>
       <InnerAdminLayout>{children}</InnerAdminLayout>
     </Suspense>
   );

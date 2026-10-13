@@ -1,4 +1,3 @@
-import DeskBackground from "@/components/DeskBackground";
 import Navbar from "@/components/Navbar";
 import EventStrip from "@/components/EventStrip";
 import Hero from "@/components/Hero";
@@ -11,8 +10,7 @@ import Footer from "@/components/Footer";
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
-      <DeskBackground />
+    <main id="main-content" className="landing-page min-h-screen">
       <Navbar />
       <EventStrip />
       <Hero />

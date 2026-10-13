@@ -44,7 +44,14 @@ export class StageActionError extends Error {
 // stage numbers only, names only if event_state.reveal_stage_names.
 export async function getStageAccess(code?: string | null, regNo?: string | null): Promise<StageAccessEntry[]> {
   if (!isSupabaseConfigured()) {
-    return [1, 2, 3, 4].map((stage) => ({ stage, slug: "", name: null, state: "LOCKED" as const, reason: "not_released" }));
+    return [1, 2, 3, 4].map((stage) => ({
+      stage,
+      slug: "",
+      name: null,
+      state: "LOCKED" as const,
+      reason: "not_released",
+      stage_status: "not_released" as const,
+    }));
   }
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc("get_stage_access", { p_code: code ?? null, p_reg_no: regNo ?? null });

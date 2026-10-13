@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getTeam, loadSession, normalizeTeamCode, subscribeToTeam } from "@/lib/registration";
+import { getTeam, loadSession, clearSession, normalizeTeamCode, subscribeToTeam } from "@/lib/registration";
 import type { RegistrationTeam } from "@/lib/types";
 import LobbyBoard from "@/components/register/LobbyBoard";
 import JoinTeamFlow from "@/components/register/JoinTeamFlow";
@@ -43,10 +43,17 @@ function JoinTeamContent() {
       const session = loadSession();
       const sameTeam = session?.teamCode && normalizeTeamCode(session.teamCode) === inviteCode;
       if (sameTeam) {
-        const existing = await getTeam(inviteCode);
-        if (!cancelled && existing) {
-          setJoinedTeam(existing);
-          setIsCaptainView(session!.isCaptain);
+        try {
+          const existing = await getTeam(inviteCode);
+          if (!cancelled && existing) {
+            setJoinedTeam(existing);
+            setIsCaptainView(session!.isCaptain);
+          } else if (!cancelled && existing === null) {
+            // Team definitively gone — clear stale session so user can re-register.
+            clearSession();
+          }
+        } catch {
+          // Network error — keep session, fall through to JoinTeamFlow.
         }
       }
       if (!cancelled) setCheckedSession(true);
@@ -59,7 +66,7 @@ function JoinTeamContent() {
   if (!checkedSession) return null;
 
   return (
-    <main className="relative z-10 min-h-screen bg-brand-bg/50 backdrop-blur-md text-brand-fg px-6 lg:px-12 py-20">
+    <main className="registration-page relative z-10 min-h-screen text-brand-fg px-6 lg:px-12 py-20">
       <div className="max-w-3xl mx-auto mb-12">
         <Link href="/" className="font-sans text-xs uppercase tracking-[0.15em] text-brand-fg/50 hover:text-brand-fg transition-colors">
           ← Back home

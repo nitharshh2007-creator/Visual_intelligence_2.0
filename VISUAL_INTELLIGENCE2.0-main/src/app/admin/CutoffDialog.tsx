@@ -5,6 +5,7 @@ import { adminApplyCutoff, adminPreviewCutoff, AdminError } from "@/lib/admin";
 import type { CutoffPreview } from "@/lib/supabase";
 import type { CutoffConfig } from "@/data/event";
 import { ADVANCE_RULE } from "@/data/event";
+import { X, AlertTriangle } from "lucide-react";
 
 interface Props {
   config: CutoffConfig;
@@ -19,38 +20,41 @@ export default function CutoffDialog({ config, onClose, onApplied }: Props) {
   const [preview, setPreview] = useState<CutoffPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [excluded, setExcluded] = useState<Set<string>>(new Set());
-  const [included, setIncluded] = useState<Set<string>>(new Set());
+  const [selectedTeams, setSelectedTeams] = useState<Set<string>>(new Set());
   const [confirmText, setConfirmText] = useState("");
   const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     adminPreviewCutoff(config.afterStage, keepMode, keepValue)
-      .then(setPreview)
+      .then((result) => {
+        setPreview(result);
+        setSelectedTeams(new Set(result.teams.filter((team) => team.would_keep).map((team) => team.team_id)));
+      })
       .catch((e) => setError(e instanceof AdminError ? e.message : "Failed to load preview"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function toggleExclude(teamId: string, currentlyKept: boolean) {
-    const setter = currentlyKept ? setExcluded : setIncluded;
-    setter((s) => {
-      const next = new Set(s);
+  function toggleTeam(teamId: string) {
+    setSelectedTeams((current) => {
+      const next = new Set(current);
       if (next.has(teamId)) next.delete(teamId);
       else next.add(teamId);
       return next;
     });
   }
 
-  const finalKeepCount = preview
-    ? preview.teams.filter((t) => (t.would_keep && !excluded.has(t.team_id)) || (!t.would_keep && included.has(t.team_id))).length
-    : 0;
+  const finalKeepCount = selectedTeams.size;
 
   async function handleApply() {
     if (confirmText !== "APPLY") return;
     setApplying(true);
     try {
-      await adminApplyCutoff(config.afterStage, keepMode, keepValue, Array.from(included), Array.from(excluded), ADVANCE_RULE);
+      const selectedIds = Array.from(selectedTeams);
+      const excludedIds = preview?.teams
+        .filter((team) => !selectedTeams.has(team.team_id))
+        .map((team) => team.team_id) ?? [];
+      await adminApplyCutoff(config.afterStage, keepMode, keepValue, selectedIds, excludedIds, ADVANCE_RULE);
       onApplied();
       onClose();
     } catch (e) {
@@ -67,7 +71,9 @@ export default function CutoffDialog({ config, onClose, onApplied }: Props) {
           <h2 className="font-sans font-bold uppercase tracking-wider text-lg text-white">
             Apply Cutoff — After Stage {config.afterStage}
           </h2>
-          <button onClick={onClose} className="text-white/40 hover:text-white">✕</button>
+          <button onClick={onClose} className="text-white/40 hover:text-white p-1 rounded-lg" aria-label="Close">
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         <p className="text-xs text-white/50 mb-4">
@@ -82,8 +88,9 @@ export default function CutoffDialog({ config, onClose, onApplied }: Props) {
         {preview && (
           <>
             {preview.tie_warning && (
-              <div className="mb-4 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
-                ⚠ Tie at the cut line — all tied teams are included by default. Toggle below to break the tie manually.
+              <div className="mb-4 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Tie at the cut line — all tied teams are checked by default. Adjust the checkboxes below before applying.</span>
               </div>
             )}
 
@@ -94,24 +101,25 @@ export default function CutoffDialog({ config, onClose, onApplied }: Props) {
                     <th className="text-left py-2 px-3">Rank</th>
                     <th className="text-left py-2 px-3">Team</th>
                     <th className="text-right py-2 px-3">Total</th>
-                    <th className="text-center py-2 px-3">Keep?</th>
+                    <th className="text-center py-2 px-3">Advance?</th>
                   </tr>
                 </thead>
                 <tbody>
                   {preview.teams.map((t) => {
-                    const kept = (t.would_keep && !excluded.has(t.team_id)) || (!t.would_keep && included.has(t.team_id));
+                    const kept = selectedTeams.has(t.team_id);
                     return (
                       <tr key={t.team_id} className={`border-b border-white/5 ${kept ? "" : "opacity-40"}`}>
                         <td className="py-2 px-3 text-white/60">#{t.rank}</td>
                         <td className="py-2 px-3 text-white">{t.name}</td>
                         <td className="py-2 px-3 text-right text-white/80">{t.total}</td>
                         <td className="py-2 px-3 text-center">
-                          <button
-                            onClick={() => toggleExclude(t.team_id, t.would_keep)}
-                            className={`px-2 py-1 rounded text-[10px] uppercase font-bold ${kept ? "bg-emerald-500/20 text-emerald-300" : "bg-white/5 text-white/40"}`}
-                          >
-                            {kept ? "Kept" : "Cut"}
-                          </button>
+                          <input
+                            type="checkbox"
+                            checked={kept}
+                            onChange={() => toggleTeam(t.team_id)}
+                            aria-label={`${kept ? "Remove" : "Allow"} ${t.name} ${kept ? "from" : "to"} the next stage`}
+                            className="h-4 w-4 accent-emerald-400"
+                          />
                         </td>
                       </tr>
                     );
@@ -121,7 +129,7 @@ export default function CutoffDialog({ config, onClose, onApplied }: Props) {
             </div>
 
             <p className="text-xs text-white/50 mb-4">
-              Final count: <span className="text-white font-bold">{finalKeepCount}</span> of {preview.total_teams} teams advance.
+              Checked teams only: <span className="text-white font-bold">{finalKeepCount}</span> of {preview.total_teams} teams advance.
             </p>
 
             <div className="flex items-center gap-3">
