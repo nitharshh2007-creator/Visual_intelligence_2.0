@@ -56,10 +56,12 @@ export default function PodiumCard({ team, rank, material, heightClass, delay, i
           ? { delay, duration: 0.7, type: "spring", stiffness: 260, damping: 18 }
           : { delay, duration: 0.6, ease: [0.22, 1, 0.36, 1] }
       }
+      data-tilt
+      data-tilt-max="7"
       tabIndex={0}
       role="group"
       aria-label={`Rank ${rank}: ${team.name}, ${team.total} points`}
-      className={`lb-tilt relative flex flex-col justify-between overflow-hidden outline-none ${heightClass} ${isFlashing ? "lb-flash" : ""}`}
+      className={`relative flex flex-col justify-between overflow-hidden outline-none ${heightClass} ${isFlashing ? "lb-flash" : ""}`}
       style={{
         background: MATERIAL_BG[material],
         borderRadius: 28,

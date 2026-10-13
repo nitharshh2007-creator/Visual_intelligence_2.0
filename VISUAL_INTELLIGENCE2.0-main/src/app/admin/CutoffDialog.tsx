@@ -66,7 +66,7 @@ export default function CutoffDialog({ config, onClose, onApplied }: Props) {
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-[#0A0A0F] border border-white/15 rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6">
+      <div onClick={(e) => e.stopPropagation()} className="bg-[#1c1a1a] border border-white/15 rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6 admin-modal">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-sans font-bold uppercase tracking-wider text-lg text-white">
             Apply Cutoff — After Stage {config.afterStage}
@@ -96,7 +96,7 @@ export default function CutoffDialog({ config, onClose, onApplied }: Props) {
 
             <div className="max-h-80 overflow-y-auto border border-white/10 rounded-lg mb-4">
               <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-[#0A0A0F]">
+                <thead className="sticky top-0 bg-[#1c1a1a]">
                   <tr className="border-b border-white/10 text-white/40 uppercase tracking-wider">
                     <th className="text-left py-2 px-3">Rank</th>
                     <th className="text-left py-2 px-3">Team</th>

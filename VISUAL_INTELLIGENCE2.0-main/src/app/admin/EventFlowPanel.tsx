@@ -179,7 +179,7 @@ export default function EventFlowPanel({
       overview?.stages.some((stage) => stage.stage === 4 && stage.status === "ended"));
   const cutoffApplied = (afterStage: number) => (eventState?.current_round ?? 0) >= afterStage;
   const hasShortlistedTeams = overview?.teams.some(
-    (team) => team.access["3"]?.reason !== "not_shortlisted",
+    (team) => !["not_shortlisted", "shortlist_pending", "cut_after_stage_2"].includes(team.access["3"]?.reason ?? ""),
   ) ?? false;
   const canStart = (stage: number) =>
     stageStatus(stage) === "released" &&
@@ -190,7 +190,7 @@ export default function EventFlowPanel({
     (stage !== 4 || cutoffApplied(3));
 
   return (
-    <section className="p-4 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-md relative">
+    <section className="p-4 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-md relative admin-panel">
       {toast && <div className="absolute top-2 right-2 px-3 py-1.5 rounded bg-black text-white text-xs z-10">{toast}</div>}
 
       <h2 className="font-sans font-bold uppercase tracking-[0.12em] text-sm text-white/80 mb-6">Event Flow</h2>
@@ -212,7 +212,7 @@ export default function EventFlowPanel({
           onClick={onToggleRegistration}
           className={`text-[10px] px-3 py-1.5 rounded uppercase font-bold tracking-wider transition-colors ${
             eventState?.registration_closed
-              ? "bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 text-[#060912]"
+              ? "bg-[linear-gradient(180deg,#8a1a2b,#6b0f1a_55%,#4a0a12)] text-[#faf8f3] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] hover:brightness-110"
               : "border border-red-500/30 text-red-300 hover:bg-red-500/10"
           }`}
         >

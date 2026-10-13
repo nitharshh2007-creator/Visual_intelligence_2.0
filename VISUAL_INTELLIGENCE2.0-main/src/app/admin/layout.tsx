@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { checkIsAdmin, getAdminSession, onAdminAuthStateChange, signOutAdmin } from "@/lib/admin";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import Loader from "@/components/ui/Loader";
 
 type GateState = "checking" | "signed-out" | "not-admin" | "ok" | "unconfigured";
 
@@ -56,49 +57,34 @@ function InnerAdminLayout({ children }: { children: React.ReactNode }) {
   }, [pathname, isLoginPage, router]);
 
   if (isLoginPage) {
-    return <div className="min-h-screen bg-[#191818] text-white">{children}</div>;
+    return <div className="admin-shell min-h-screen text-white">{children}</div>;
   }
 
+  const navLinks = [
+    { href: "/admin", label: "Dashboard", active: pathname === "/admin" },
+    { href: "/admin/stages", label: "Stages", active: pathname.startsWith("/admin/stages") },
+    { href: "/admin/teams", label: "Teams & Shortlisting", active: pathname.startsWith("/admin/teams") },
+    { href: "/admin/cyber-themes", label: "Cyber Themes", active: pathname.startsWith("/admin/cyber-themes") },
+  ];
+  const renderLinks = () =>
+    navLinks.map((l) => (
+      <Link key={l.href} href={l.href} aria-current={l.active ? "page" : undefined} className="admin-nav-link">
+        {l.label}
+      </Link>
+    ));
+
   return (
-    <div className="min-h-screen bg-[#191818] text-white font-mono">
+    <div className="admin-shell min-h-screen text-white font-sans">
       {gate === "ok" && (
-        <nav className="border-b border-white/10 bg-white/[0.03] backdrop-blur-md sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <span className="font-sans font-bold uppercase tracking-[0.15em] text-sm text-[#e9adb5]">
+        <nav aria-label="Control room" className="border-b border-white/10 bg-[#191818]/80 backdrop-blur-md sticky top-0 z-50 shadow-[0_10px_30px_-20px_rgba(0,0,0,0.9)]">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-5 min-w-0">
+              <span className="flex items-center gap-2 font-sans font-bold uppercase tracking-[0.15em] text-sm text-[#e9adb5] shrink-0">
+                <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#fff,#a8324a_50%,#4a0a12)] shadow-[0_0_10px_rgba(168,50,74,0.8)]" />
                 Control Room
               </span>
-              <div className="hidden md:flex items-center gap-4 text-[11px] uppercase tracking-wider text-white/50">
-                <Link
-                  href="/admin"
-                  className={`hover:text-white transition-colors ${pathname === "/admin" ? "text-white font-bold" : ""}`}
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  href="/admin/stages"
-                  className={`hover:text-white transition-colors ${pathname.startsWith("/admin/stages") ? "text-white font-bold" : ""}`}
-                >
-                  Stages
-                </Link>
-                <Link
-                  href="/admin/scoring"
-                  className={`hover:text-white transition-colors ${pathname.startsWith("/admin/scoring") ? "text-white font-bold" : ""}`}
-                >
-                  Scoring
-                </Link>
-                <Link
-                  href="/admin/teams"
-                  className={`hover:text-white transition-colors ${pathname.startsWith("/admin/teams") ? "text-white font-bold" : ""}`}
-                >
-                  Teams & Shortlisting
-                </Link>
-                <Link
-                  href="/admin/cyber-themes"
-                  className={`hover:text-white transition-colors ${pathname.startsWith("/admin/cyber-themes") ? "text-white font-bold" : ""}`}
-                >
-                  Cyber Themes
-                </Link>
+              <div className="hidden lg:flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/55">
+                {renderLinks()}
               </div>
             </div>
             <button
@@ -106,52 +92,19 @@ function InnerAdminLayout({ children }: { children: React.ReactNode }) {
                 await signOutAdmin();
                 router.replace("/admin/login");
               }}
-              className="text-[11px] uppercase tracking-wider text-white/50 hover:text-white border border-white/15 rounded px-3 py-1.5 transition-colors"
+              className="shrink-0 min-h-9 text-[11px] uppercase tracking-wider text-white/60 hover:text-white border border-white/15 hover:border-white/30 hover:bg-white/5 rounded-full px-4 py-1.5 transition-colors"
             >
               Sign out
             </button>
           </div>
-          <div className="md:hidden flex items-center gap-4 px-4 pb-3 text-[11px] uppercase tracking-wider text-white/50 overflow-x-auto">
-            <Link
-              href="/admin"
-              className={`hover:text-white transition-colors whitespace-nowrap ${pathname === "/admin" ? "text-white font-bold" : ""}`}
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/admin/stages"
-              className={`hover:text-white transition-colors whitespace-nowrap ${pathname.startsWith("/admin/stages") ? "text-white font-bold" : ""}`}
-            >
-              Stages
-            </Link>
-            <Link
-              href="/admin/scoring"
-              className={`hover:text-white transition-colors whitespace-nowrap ${pathname.startsWith("/admin/scoring") ? "text-white font-bold" : ""}`}
-            >
-              Scoring
-            </Link>
-            <Link
-              href="/admin/teams"
-              className={`hover:text-white transition-colors whitespace-nowrap ${pathname.startsWith("/admin/teams") ? "text-white font-bold" : ""}`}
-            >
-              Teams & Shortlisting
-            </Link>
-            <Link
-              href="/admin/cyber-themes"
-              className={`hover:text-white transition-colors whitespace-nowrap ${pathname.startsWith("/admin/cyber-themes") ? "text-white font-bold" : ""}`}
-            >
-              Cyber Themes
-            </Link>
+          <div className="lg:hidden flex items-center gap-1 px-3 pb-3 text-[11px] uppercase tracking-wider text-white/55 overflow-x-auto no-scrollbar">
+            {renderLinks()}
           </div>
         </nav>
       )}
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
-        {gate === "checking" && (
-          <div className="flex items-center justify-center py-32 text-white/40 text-sm uppercase tracking-wider">
-            Checking session…
-          </div>
-        )}
+        {gate === "checking" && <Loader label="Checking session" tone="dark" />}
         {gate === "unconfigured" && (
           <div className="flex items-center justify-center py-32 text-center">
             <div>
@@ -185,7 +138,7 @@ function InnerAdminLayout({ children }: { children: React.ReactNode }) {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#191818] text-white">Loading...</div>}>
+    <Suspense fallback={<div className="admin-shell min-h-screen text-white"><Loader label="Loading" tone="dark" /></div>}>
       <InnerAdminLayout>{children}</InnerAdminLayout>
     </Suspense>
   );

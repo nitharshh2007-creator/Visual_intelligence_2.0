@@ -2,6 +2,7 @@
 
 import { useTeamGate } from "@/hooks/useTeamGate";
 import TeamGateContent from "@/components/TeamGateContent";
+import Loader from "@/components/ui/Loader";
 
 // Wraps the whole /stages subtree — no stage content, locked or
 // otherwise, renders for a visitor with no team or an incomplete one.
@@ -13,7 +14,7 @@ import TeamGateContent from "@/components/TeamGateContent";
 export default function TeamGate({ children }: { children: React.ReactNode }) {
   const { state, team } = useTeamGate();
 
-  if (state === "checking") return null;
+  if (state === "checking") return <Loader label="Checking your team" tone="dark" />;
   if (state === "ok") return <>{children}</>;
 
   return <TeamGateContent state={state} team={team} />;

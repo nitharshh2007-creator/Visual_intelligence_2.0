@@ -9,8 +9,7 @@
 // which path is active, only that these are now async.
 //
 // RPC error SQLSTATEs (see supabase/migrations/0002_realtime_backend.sql)
-// map to RegistrationErrorCode: VI001→INVALID_CODE, VI002/P0001→TEAM_FULL,
-// VI003→ALREADY_REGISTERED, VI004→REGISTRATION_CLOSED, VI005→NAME_TAKEN.
+// map to RegistrationErrorCode in mapRegistrationError() below.
 
 import { TEAM_MAX, TEAM_MIN, REGISTRATION_DEADLINE_ISO } from "@/data/event";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabase";
@@ -277,22 +276,71 @@ function mapLobbyToTeam(payload: LobbyPayload): RegistrationTeam {
   };
 }
 
-function mapPostgrestErrorCode(code: string | undefined): RegistrationErrorCode {
+export interface RpcErrorLike {
+  code?: string;
+  message?: string;
+  details?: string | null;
+}
+
+// Which RPC produced the error — VI001 means different things for
+// create_team (blank team/captain name) and join_team (blank reg/email
+// or unknown code), see 0014 create_team and 0019 join_team.
+export type RegistrationContext = "create" | "join" | "lookup";
+
+export function mapRegistrationError(error: RpcErrorLike | null | undefined, context: RegistrationContext): RegistrationErrorCode {
+  const code = error?.code;
+  const text = `${error?.message ?? ""} ${error?.details ?? ""}`;
   switch (code) {
-    case "VI001": return "INVALID_CODE";
+    case "VI001":
+      if (context === "create" || /required/i.test(text)) return "MISSING_FIELDS";
+      return "INVALID_CODE";
     case "VI002":
     case "P0001": return "TEAM_FULL";
     case "VI003": return "ALREADY_REGISTERED";
     case "VI004": return "REGISTRATION_CLOSED";
     case "VI005": return "NAME_TAKEN";
     case "VI006": return "NOT_ELIGIBLE";
-    case "42501": // insufficient_privilege — RLS blocked the call
-    case "42P01": return "NETWORK_ERROR"; // undefined_table — schema mismatch
+    // Unique violation that slipped past the RPC's own checks (email is
+    // never pre-checked; a concurrent create can race the name check).
+    // The constraint name says which value collided.
+    case "23505":
+      if (/members_email_unique/i.test(text)) return "EMAIL_TAKEN";
+      if (/teams_name_unique/i.test(text)) return "NAME_TAKEN";
+      if (/members_reg_no_unique/i.test(text)) return "ALREADY_REGISTERED";
+      if (/teams_(code|invite_code)/i.test(text)) return "SERVER_ERROR"; // invite-code collision — retrying succeeds
+      return "ALREADY_REGISTERED";
     // No SQLSTATE at all means Postgrest never got a structured error
     // back from the RPC — almost always a transport failure (offline,
     // DNS, CORS, a dropped connection), not a validation rejection.
-    default: return code ? "INVALID_CODE" : "NETWORK_ERROR";
+    case undefined:
+    case "":
+      return "NETWORK_ERROR";
+    // Anything else (RLS/privilege 42501, missing table 42P01, missing
+    // function PGRST202, constraint 23502/23514, …) is a server/schema
+    // problem — never blame the user's input for it.
+    default: return "SERVER_ERROR";
   }
+}
+
+function registrationError(error: RpcErrorLike, context: RegistrationContext): Error & { code: RegistrationErrorCode } {
+  return Object.assign(new Error(error.message ?? "Registration failed"), { code: mapRegistrationError(error, context) });
+}
+
+// After a successful create/join the write is already committed, so a
+// failed lobby read must not surface as an error — the user would retry
+// and hit NAME_TAKEN/ALREADY_REGISTERED on their own team. Retry once,
+// then hand back null and let the caller build a placeholder; the lobby
+// Realtime subscription replaces it with the real roster.
+async function getTeamAfterWrite(code: string): Promise<RegistrationTeam | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const team = await realGetTeam(code);
+      if (team) return team;
+    } catch {
+      /* fall through to retry */
+    }
+  }
+  return null;
 }
 
 async function realGetTeam(code: string, regNo?: string | null): Promise<RegistrationTeam | null> {
@@ -305,7 +353,7 @@ async function realGetTeam(code: string, regNo?: string | null): Promise<Registr
   // "no such team" from a real network/RLS error.
   if (error) {
     if (error.code === "VI001") return null;
-    throw Object.assign(new Error(error.message), { code: mapPostgrestErrorCode(error.code) });
+    throw registrationError(error, "lookup");
   }
   if (!data) return null;
   return mapLobbyToTeam(data as unknown as LobbyPayload);
@@ -319,13 +367,27 @@ async function realCreateTeam(teamName: string, captainName: string, regNo: stri
     p_reg_no: regNo,
     p_email: email,
   });
-  if (error) {
-    throw Object.assign(new Error(error.message), { code: mapPostgrestErrorCode(error.code) });
+  if (error) throw registrationError(error, "create");
+  const created = data as unknown as { code?: string; team_id?: string } | null;
+  if (!created?.code) {
+    throw Object.assign(new Error("create_team returned no invite code"), { code: "SERVER_ERROR" as RegistrationErrorCode });
   }
-  const code = (data as unknown as { code: string }).code;
-  const team = await realGetTeam(code);
-  if (!team) throw new Error("Team was created but could not be loaded. Refresh and try again.");
-  return team;
+  // Persist the session before the lobby read so a refresh resumes the
+  // team even if that read fails.
+  saveSession({ teamCode: created.code, regNo, isCaptain: true });
+  if (typeof window !== "undefined") localStorage.setItem(DRAFT_KEY, created.code);
+
+  const team = await getTeamAfterWrite(created.code);
+  if (team) return team;
+  const now = Date.now();
+  return {
+    id: created.team_id ?? "",
+    inviteCode: created.code,
+    name: teamName,
+    members: [{ name: captainName, initials: getInitials(captainName), isCaptain: true, joinedAt: now }],
+    status: "incomplete",
+    createdAt: now,
+  };
 }
 
 async function realJoinTeam(
@@ -338,7 +400,7 @@ async function realJoinTeam(
   year?: number
 ): Promise<JoinResult> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase.rpc("join_team", {
+  const { data, error } = await supabase.rpc("join_team", {
     p_code: code,
     p_member_name: memberName,
     p_reg_no: regNo,
@@ -352,10 +414,23 @@ async function realJoinTeam(
     // up-to-date roster (e.g. TEAM_FULL shows the full roster).
     let team: RegistrationTeam | null = null;
     try { team = await realGetTeam(code); } catch { /* ignore */ }
-    return { team, error: mapPostgrestErrorCode(error.code) };
+    return { team, error: mapRegistrationError(error, "join") };
   }
-  const team = await realGetTeam(code);
-  return { team };
+  saveSession({ teamCode: code, regNo, isCaptain: false });
+
+  const team = await getTeamAfterWrite(code);
+  if (team) return { team };
+  const now = Date.now();
+  return {
+    team: {
+      id: (data as unknown as { team_id?: string } | null)?.team_id ?? "",
+      inviteCode: code,
+      name: code,
+      members: [{ name: memberName, initials: getInitials(memberName), isCaptain: false, joinedAt: now }],
+      status: "incomplete",
+      createdAt: now,
+    },
+  };
 }
 
 interface TeamPreviewPayload {
@@ -368,9 +443,8 @@ interface TeamPreviewPayload {
 async function realFindTeamByCode(code: string): Promise<{ preview: TeamPreview | null; error?: RegistrationErrorCode }> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc("find_team_by_code", { p_code: code });
-  if (error || !data) {
-    return { preview: null, error: mapPostgrestErrorCode(error?.code) };
-  }
+  if (error) return { preview: null, error: mapRegistrationError(error, "lookup") };
+  if (!data) return { preview: null, error: "INVALID_CODE" };
   const payload = data as unknown as TeamPreviewPayload;
   return {
     preview: {
@@ -421,7 +495,17 @@ function realSubscribe(code: string, onChange: (team: RegistrationTeam | null) =
 // Public API — same names/shapes regardless of which path is active
 // ─────────────────────────────────────────────────────────────
 
+// The RPCs compare reg_no/email exactly, so stray whitespace would
+// register " 24CS045" as a different student from "24CS045".
+function requireFields(...values: string[]) {
+  if (values.some((v) => !v)) {
+    throw Object.assign(new Error("All required fields must be filled in"), { code: "MISSING_FIELDS" as RegistrationErrorCode });
+  }
+}
+
 export async function createTeam(teamName: string, captainName: string, regNo: string, email: string): Promise<RegistrationTeam> {
+  [teamName, captainName, regNo, email] = [teamName, captainName, regNo, email].map((v) => v.trim());
+  requireFields(teamName, captainName, regNo, email);
   debounceGuard("createTeam");
   return withNetworkErrorMapping(async () => {
     const team = isSupabaseConfigured()
@@ -442,6 +526,8 @@ export async function joinTeam(
   section?: string,
   year?: number
 ): Promise<JoinResult> {
+  [memberName, regNo, email] = [memberName, regNo, email].map((v) => v.trim());
+  requireFields(memberName, regNo, email);
   debounceGuard("joinTeam");
   const code = normalizeTeamCode(inviteCode);
   return withNetworkErrorMapping(async () => {

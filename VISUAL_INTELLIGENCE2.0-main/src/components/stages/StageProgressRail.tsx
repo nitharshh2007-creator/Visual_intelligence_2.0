@@ -12,15 +12,15 @@ const LABELS: Record<string, string> = {
   RELEASED: "Ready",
   LIVE: "Live",
   COMPLETED: "Done",
-  ELIMINATED: "Out",
+  ELIMINATED: "404",
 };
 
 const DOT_CLASS: Record<string, string> = {
   LOCKED: "bg-white/10 border-white/20 text-white/30",
   RELEASED: "bg-white/10 border-white/40 text-white",
-  LIVE: "bg-emerald-500/20 border-emerald-400 text-emerald-300",
+  LIVE: "bg-champagne-500/20 border-champagne-400 text-champagne-300",
   COMPLETED: "bg-white text-black border-white",
-  ELIMINATED: "bg-red-500/10 border-red-500/40 text-red-300",
+  ELIMINATED: "bg-wine-500/15 border-wine-400/60 text-wine-300",
 };
 
 // Four nodes: locked / available (released) / live / done / eliminated.

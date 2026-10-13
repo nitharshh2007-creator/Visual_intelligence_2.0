@@ -332,9 +332,13 @@ begin
 end;
 $$;
 
-grant execute on function get_my_team_cyber_theme(text, text) to anon, authenticated;
-grant execute on function assign_team_cyber_theme(uuid) to anon, authenticated;
-grant execute on function admin_get_cyber_theme_allocations() to authenticated;
-grant execute on function admin_allocate_all_cyber_themes(boolean) to authenticated;
+grant execute on function public.get_my_team_cyber_theme(text, text) to anon, authenticated;
 
+revoke execute on function public.assign_team_cyber_theme(uuid)
+from public, anon, authenticated;
+
+grant execute on function public.admin_get_cyber_theme_allocations() to authenticated;
+grant execute on function public.admin_allocate_all_cyber_themes(boolean) to authenticated;
+
+notify pgrst, 'reload schema';
 commit;

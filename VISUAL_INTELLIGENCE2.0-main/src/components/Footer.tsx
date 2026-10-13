@@ -1,7 +1,16 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import Link from "next/link";
 import { eventDetails } from "@/data/event";
+
+const LINKS = [
+  { href: "/#about", label: "About" },
+  { href: "/stages", label: "Stages" },
+  { href: "/register", label: "Register Team" },
+  { href: "/register?mode=join", label: "Join with Code" },
+  { href: "/leaderboard", label: "Leaderboard" },
+];
 
 export default function Footer() {
   const scrollToTop = () => {
@@ -9,67 +18,50 @@ export default function Footer() {
   };
 
   return (
-    <footer 
-      data-bg="dark" 
-      data-desk 
-      data-desk-a="0" 
-      className="py-24 px-6 lg:px-12 text-brand-bg font-sans relative"
-    >
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-16">
-        
-        <div className="space-y-12">
-          <div className="font-serif italic text-3xl md:text-5xl">
-            Visual<br/>Intelligence
+    <footer data-bg="dark" className="site-footer">
+      <div className="landing-col">
+        <div className="footer-top">
+          <div className="footer-brand">
+            <p className="footer-mark">Visual<br /><em>Intelligence</em> <span>2.0</span></p>
+            <p className="footer-blurb">
+              {eventDetails.title}: {eventDetails.subtitle}. Empowering the next generation of engineers with AI literacy.
+            </p>
           </div>
-          
-          <div className="text-xs uppercase tracking-[0.1em] text-brand-bg/50 max-w-sm leading-relaxed">
-            {eventDetails.title}: {eventDetails.subtitle}.
-            Empowering the next generation of engineers with AI literacy.
+
+          <div className="footer-cols">
+            <div>
+              <h4>Event</h4>
+              <ul>
+                <li>{eventDetails.date}</li>
+                <li>{eventDetails.time}</li>
+                <li>{eventDetails.venue}</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Navigation</h4>
+              <ul>
+                {LINKS.map((l) => (
+                  <li key={l.href}><Link href={l.href}>{l.label}</Link></li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4>Contact</h4>
+              <ul>
+                <li><a href="mailto:contact@ieee-cse.org">contact@ieee-cse.org</a></li>
+                <li><button type="button" onClick={scrollToTop}>Back to Top ↑</button></li>
+              </ul>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-12 md:gap-24 text-xs uppercase tracking-[0.1em]">
-          <div>
-            <h4 className="text-brand-bg/50 mb-4">Contact</h4>
-            <div className="space-y-2">
-              <p>{eventDetails.venue}</p>
-              <a href="mailto:contact@ieee-cse.org" className="block hover:opacity-50 transition-opacity">
-                contact@ieee-cse.org
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-brand-bg/50 mb-4">Navigation</h4>
-            <div className="space-y-2 flex flex-col items-start">
-              <button onClick={scrollToTop} className="hover:opacity-50 transition-opacity">Back to Top</button>
-              <a href="#register" className="hover:opacity-50 transition-opacity">Register</a>
-            </div>
-          </div>
+        {/* Organizer & Partner Logos */}
+        <div className="footer-logos">
+          <img src="/logos/karunya.png" alt="Karunya" className="footer-logo-lg" />
+          <img src="/logos/ieee_cs_logo.png" alt="IEEE Computer Society" />
+          <img src="/logos/acm.png" alt="ACM" />
+          <span className="footer-copy">© 2026 IEEE Computer Society CSE.</span>
         </div>
-      </div>
-
-      {/* Organizer & Partner Logos */}
-      <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-brand-bg/10 flex flex-wrap items-center gap-8 md:gap-12">
-        <img
-          src="/logos/karunya.png"
-          alt="Karunya"
-          className="h-8 md:h-10 w-auto object-contain invert brightness-0 opacity-60 hover:opacity-100 transition-opacity"
-        />
-        <img
-          src="/logos/ieee_cs_logo.png"
-          alt="IEEE Computer Society"
-          className="h-7 md:h-9 w-auto object-contain invert brightness-0 opacity-60 hover:opacity-100 transition-opacity"
-        />
-        <img
-          src="/logos/acm.png"
-          alt="ACM"
-          className="h-7 md:h-9 w-auto object-contain invert brightness-0 opacity-60 hover:opacity-100 transition-opacity"
-        />
-      </div>
-      
-      <div className="max-w-7xl mx-auto mt-8 pt-4 text-[10px] uppercase tracking-[0.1em] text-brand-bg/30">
-        © 2026 IEEE Computer Society CSE.
       </div>
     </footer>
   );

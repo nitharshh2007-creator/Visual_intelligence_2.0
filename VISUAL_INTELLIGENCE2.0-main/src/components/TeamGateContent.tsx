@@ -13,7 +13,7 @@ import { Users, Lock } from "lucide-react";
 // about.
 export default function TeamGateContent({ state, team }: { state: Exclude<TeamGateState, "checking" | "ok">; team: RegistrationTeam | null }) {
   return (
-    <div className="max-w-md mx-auto px-4 py-24 text-center">
+    <div className="lb-panel max-w-md mx-4 sm:mx-auto my-12 px-6 py-14 text-center rounded-[28px] border border-white/10 bg-[linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
       <div className="flex justify-center mb-6" aria-hidden="true">
         {state === "incomplete" ? (
           <Users className="w-12 h-12 text-[#e9adb5]" />
@@ -31,7 +31,7 @@ export default function TeamGateContent({ state, team }: { state: Exclude<TeamGa
       </p>
       <Link
         href="/register"
-        className="inline-block px-6 py-3 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:scale-105 transition-transform"
+        className="lb-cta inline-block px-6 py-3 rounded-full font-bold text-sm uppercase tracking-widest"
       >
         {state === "incomplete" ? "Go to Your Lobby" : "Register or Join a Team"}
       </Link>

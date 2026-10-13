@@ -98,15 +98,15 @@ export default function LeaderboardPage() {
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 md:px-8">
         {/* Nav */}
-        <div className="flex items-center justify-between py-4" style={{ borderBottom: "1px solid var(--lb-line)" }}>
-          <Link href="/" className="text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: "var(--lb-grey-400)" }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 py-4" style={{ borderBottom: "1px solid var(--lb-line)" }}>
+          <Link href="/" className="min-h-11 inline-flex items-center text-xs font-semibold uppercase tracking-[0.15em] hover:!text-white transition-colors" style={{ color: "var(--lb-grey-400)" }}>
             ← Home
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {isAdmin && (
               <button
                 onClick={() => setShowEliminated((v) => !v)}
-                className="text-xs font-semibold uppercase tracking-[0.15em] px-3 py-1.5"
+                className="lb-chip-btn text-xs font-semibold uppercase tracking-[0.15em] px-3 py-1.5"
                 style={{
                   background: showEliminated ? "var(--lb-burgundy-700)" : "rgba(255,255,255,0.06)",
                   color: "var(--lb-white)",
@@ -118,7 +118,7 @@ export default function LeaderboardPage() {
             )}
             <button
               onClick={() => setIsProjectorMode(true)}
-              className="text-xs font-semibold uppercase tracking-[0.15em] px-3 py-1.5"
+              className="lb-chip-btn text-xs font-semibold uppercase tracking-[0.15em] px-3 py-1.5"
               style={{ background: "rgba(255,255,255,0.06)", color: "var(--lb-white)", borderRadius: 999 }}
             >
               Projector Mode (F)

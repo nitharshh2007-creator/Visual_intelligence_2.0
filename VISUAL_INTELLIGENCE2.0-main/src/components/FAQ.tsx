@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Reveal, { MaskedWords } from "./fx/Reveal";
 
 interface FAQItem {
   q: string;
@@ -41,49 +42,39 @@ export default function FAQ() {
   };
 
   return (
-    <section 
-      id="faq" 
-      data-desk 
-      data-desk-end 
-      className="py-32 px-6 lg:px-12 text-brand-fg relative z-10 border-t border-brand-fg/10"
-    >
-      <div className="page-col">
-        {/* Heading */}
-        <div className="mb-12">
-          <span className="font-sans text-xs uppercase tracking-[0.2em] text-brand-fg/50 block mb-4">
-            Frequently Asked
-          </span>
-          <h2 className="font-serif text-[clamp(48px,5.4vw,72px)] leading-[1.05] tracking-tight text-brand-fg">
-            Quick <span className="italic text-brand-accent">questions</span>
+    <section id="faq" className="faq-section">
+      <div className="landing-col faq-layout">
+        <Reveal as="header" className="faq-head">
+          <span className="section-eyebrow">Frequently Asked</span>
+          <h2 className="section-title">
+            <MaskedWords text="Quick" /> <em><MaskedWords text="questions." offset={1} /></em>
           </h2>
-        </div>
+          <p className="faq-aside">
+            Anything else? Your team lobby shows your live roster and code once you register.
+          </p>
+        </Reveal>
 
-        {/* Accordion List */}
-        <div className="border-t border-brand-fg divide-y divide-brand-fg/10">
+        <div className="faq-list">
           {FAQS.map((item, idx) => {
             const isOpen = openIdx === idx;
             const contentId = `faq-answer-${idx}`;
             const buttonId = `faq-button-${idx}`;
 
             return (
-              <div key={item.q} className="py-6 lg:py-8">
-                <button
-                  id={buttonId}
-                  aria-expanded={isOpen}
-                  aria-controls={contentId}
-                  onClick={() => toggle(idx)}
-                  className="w-full flex items-center justify-between text-left gap-6 group cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-brand-accent"
-                >
-                  <span className="font-serif text-[clamp(22px,2.2vw,32px)] leading-snug text-brand-fg group-hover:text-brand-accent transition-colors">
-                    {item.q}
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className="shrink-0 w-8 h-8 rounded-full border border-brand-fg/20 flex items-center justify-center font-serif text-lg leading-none text-brand-fg group-hover:border-brand-accent group-hover:text-brand-accent transition-colors"
+              <div key={item.q} className="faq-item" data-open={isOpen || undefined}>
+                <h3>
+                  <button
+                    id={buttonId}
+                    aria-expanded={isOpen}
+                    aria-controls={contentId}
+                    onClick={() => toggle(idx)}
+                    className="faq-button"
                   >
-                    {isOpen ? "−" : "+"}
-                  </span>
-                </button>
+                    <span className="faq-index" aria-hidden="true">{String(idx + 1).padStart(2, "0")}</span>
+                    <span className="faq-question">{item.q}</span>
+                    <span aria-hidden="true" className="faq-toggle" />
+                  </button>
+                </h3>
 
                 <AnimatePresence initial={false}>
                   {isOpen && (
@@ -94,12 +85,10 @@ export default function FAQ() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.28, ease: [0.76, 0, 0.24, 1] }}
-                      className="overflow-hidden"
+                      transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                      className="faq-answer"
                     >
-                      <p className="font-sans text-sm md:text-base leading-relaxed text-brand-fg/70 pt-4 pb-2 max-w-xl">
-                        {item.a}
-                      </p>
+                      <p>{item.a}</p>
                     </motion.div>
                   )}
                 </AnimatePresence>

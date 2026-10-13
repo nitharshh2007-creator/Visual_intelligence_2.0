@@ -8,14 +8,16 @@ interface Props {
   onSubmit?: () => void;
   disabled?: boolean;
   autoFocus?: boolean;
+  id?: string;
 }
 
 // Big monospace "DUM-XXXX" code field. Auto-uppercases, auto-inserts
 // the dash, strips spaces, and is paste-friendly — typing or pasting
 // "dum1234", "DUM 1234" or "dum-1234" all land on the same "DUM-1234".
-export default function CodeInput({ value, onChange, onSubmit, disabled, autoFocus }: Props) {
+export default function CodeInput({ value, onChange, onSubmit, disabled, autoFocus, id }: Props) {
   return (
     <input
+      id={id}
       value={value}
       onChange={(e) => onChange(normalizeTeamCode(e.target.value))}
       onKeyDown={(e) => {
@@ -33,8 +35,8 @@ export default function CodeInput({ value, onChange, onSubmit, disabled, autoFoc
       autoComplete="off"
       autoCorrect="off"
       spellCheck={false}
-      aria-label="Team code"
-      className="w-full px-5 py-4 rounded-xl bg-brand-light border-2 border-brand-fg/15 text-center font-mono text-3xl md:text-4xl tracking-[0.25em] text-brand-fg placeholder:text-brand-fg/20 focus:outline-none focus:border-brand-accent/60 transition-colors disabled:opacity-50"
+      aria-label={id ? undefined : "Team code"}
+      className="code-input w-full px-5 py-4 rounded-xl bg-brand-light border-2 border-brand-fg/15 text-center font-mono text-3xl md:text-4xl tracking-[0.25em] text-brand-fg placeholder:text-brand-fg/20 shadow-[inset_0_2px_4px_rgba(42,0,9,0.06)] focus:outline-none focus:border-brand-accent/60 transition-colors disabled:opacity-50"
     />
   );
 }

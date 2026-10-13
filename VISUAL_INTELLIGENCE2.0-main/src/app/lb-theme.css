@@ -18,7 +18,9 @@
 
   --lb-burgundy-900: #2A0009;
   --lb-burgundy-700: #4A0012;
+  --lb-burgundy-600: #7A0A24;
   --lb-burgundy-500: #8F0F2E;
+  --lb-burgundy-400: #A8243F;
   --lb-burgundy-300: #C2415D;
   --lb-rose-200: #EBA9B8;
   --lb-grey-400: #9A9AA3;
@@ -33,7 +35,7 @@
 
   background: var(--lb-black);
   color: var(--lb-white);
-  font-family: "Inter", sans-serif;
+  font-family: var(--font-inter), "Inter", sans-serif;
   font-variant-numeric: tabular-nums;
   min-height: 100vh;
   position: relative;
@@ -178,23 +180,61 @@
   animation: lb-shimmer 1.8s ease-in-out infinite;
 }
 
-.lb-tilt {
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
-  transform-style: preserve-3d;
-}
-.lb-tilt:hover,
-.lb-tilt:focus-visible {
-  transform: perspective(900px) rotateX(4deg) rotateY(-4deg) translateY(-4px);
-}
-
+/* Rows are framer-motion layout elements (inline transform), so hover
+   lift uses the independent `translate` property to compose with it. */
 .lb-row {
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  transition: translate 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.25s ease;
 }
 .lb-row:hover,
 .lb-row:focus-visible {
-  transform: translateY(-2px);
+  translate: 0 -2px;
   border-color: var(--lb-burgundy-500) !important;
 }
+.lb-row:focus-visible { outline: 2px solid var(--lb-rose-200); outline-offset: 2px; }
+.lb-row:active { translate: 0 0; }
+
+/* ── Shared dark surfaces (stages + leaderboard) ── */
+.lb-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(143, 15, 46, 0.35), transparent 60%),
+    linear-gradient(150deg, var(--lb-burgundy-900), var(--lb-ink) 75%);
+  border: 1px solid var(--lb-burgundy-700);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 6px rgba(0, 0, 0, 0.35), 0 24px 48px -18px rgba(0, 0, 0, 0.7);
+  --tilt-glow: rgba(235, 169, 184, 0.14);
+}
+.lb-card:hover { border-color: var(--lb-burgundy-400); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 10px rgba(0, 0, 0, 0.4), 0 36px 64px -20px rgba(109, 0, 26, 0.6); }
+a:focus-visible > .lb-card, .lb-card:focus-visible { outline: 2px solid var(--lb-rose-200); outline-offset: 3px; }
+
+.lb-panel {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+}
+
+/* Primary light pill CTA on dark pages */
+.lb-cta {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(180deg, #ffffff, #ece8e2);
+  color: #0b0b0c;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px -12px rgba(235, 169, 184, 0.35);
+  transition: translate 0.28s cubic-bezier(0.16, 1, 0.3, 1), scale 0.16s ease, box-shadow 0.28s ease;
+}
+.lb-cta:hover { translate: 0 -2px; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.4), 0 22px 40px -14px rgba(235, 169, 184, 0.45); }
+.lb-cta:active { translate: 0 0; scale: 0.98; }
+.lb-cta:focus-visible { outline: 2px solid var(--lb-rose-200); outline-offset: 3px; }
+
+/* Small translucent pill buttons (leaderboard toolbar) */
+.lb-chip-btn {
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color 0.16s ease, border-color 0.16s ease, translate 0.2s ease;
+}
+.lb-chip-btn:hover { background: rgba(255, 255, 255, 0.1) !important; border-color: rgba(255, 255, 255, 0.18); }
+.lb-chip-btn:active { translate: 0 1px; }
+.lb-chip-btn:focus-visible { outline: 2px solid var(--lb-rose-200); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   .lb-shine,
@@ -204,11 +244,10 @@
   .lb-skeleton {
     animation: none !important;
   }
-  .lb-tilt,
-  .lb-tilt:hover,
-  .lb-tilt:focus-visible {
-    transition: none !important;
-    transform: none !important;
+  .lb-row,
+  .lb-row:hover,
+  .lb-cta:hover {
+    translate: none !important;
   }
 }
 
@@ -222,3 +261,91 @@
   background: var(--lb-burgundy-700);
   border-radius: 3px;
 }
+
+/* ── /stages index: landing-page stage panels on the dark stage shell ── */
+.stages-dark { --color-brand-bg: #151212; --line: rgb(255 255 255 / .12); --muted: rgb(241 238 231 / .55); }
+.stages-dark-head { padding-top: clamp(16px, 3vw, 40px); margin-bottom: clamp(32px, 4vw, 56px); }
+.stages-dark .section-title { color: var(--vi-cream); font-size: clamp(44px, 6.6vw, 104px); }
+.stages-dark .section-title em { color: #d999a2; }
+.stages-dark .stage-marker::before { border-color: rgb(255 255 255 / .35); }
+.stages-dark .stage-panel:not([data-state="locked"]) .stage-marker { color: var(--vi-rose-200); }
+.stages-dark .stage-panel:not([data-state="locked"]) .stage-marker::before { background: var(--vi-rose-200); border-color: var(--vi-rose-200); }
+.stages-dark .stage-panel-card { box-shadow: var(--vi-highlight-dark), var(--vi-shadow-dark); }
+.stages-dark .stage-panel[data-stage="2"] .stage-panel-card { border-color: rgb(255 255 255 / .16); }
+.stages-dark .stage-panel[data-state="live"] .stage-panel-card { box-shadow: 0 0 0 4px rgb(233 173 181 / .14), var(--vi-shadow-dark-lift); }
+
+/* ── Team name badge: fixed top-right on every stage page ── */
+.team-badge {
+  position: fixed;
+  top: 84px;
+  right: clamp(10px, 2vw, 28px);
+  z-index: 49;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-width: min(46vw, 360px);
+  padding: 10px 16px 11px;
+  border-radius: 14px;
+  color: var(--vi-cream, #f1eee7);
+  background:
+    radial-gradient(80% 140% at 100% 0%, rgb(138 26 43 / .55), transparent 70%),
+    linear-gradient(180deg, rgb(30 26 26 / .94), rgb(18 15 15 / .94));
+  border: 1px solid rgb(233 173 181 / .22);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .08), 0 18px 40px -18px rgb(0 0 0 / .8);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+.team-badge-label { font: 500 9px/1.2 var(--font-sans); letter-spacing: .22em; text-transform: uppercase; color: var(--vi-rose-200, #e9adb5); }
+.team-badge-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: italic 500 clamp(18px, 2vw, 26px)/1.15 var(--font-serif);
+  letter-spacing: -.01em;
+}
+.team-badge-code { font: 500 10px/1.2 ui-monospace, monospace; letter-spacing: .14em; color: rgb(241 238 231 / .55); }
+@media (max-width: 420px) {
+  .team-badge { top: 74px; padding: 7px 12px 8px; }
+}
+
+/* ── "Oops! Stage not found" for eliminated teams ── */
+.stage-404 {
+  max-width: 560px;
+  margin: clamp(24px, 6vh, 64px) auto;
+  padding: 0 16px;
+  text-align: center;
+}
+.stage-404-code {
+  display: block;
+  font: italic 500 clamp(96px, 20vw, 180px)/.9 var(--font-serif);
+  letter-spacing: -.05em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgb(233 173 181 / .7);
+  background: linear-gradient(180deg, rgb(168 50 74 / .35), transparent 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.stage-404-title {
+  margin-top: 18px;
+  font: italic 500 clamp(26px, 4vw, 38px)/1.1 var(--font-serif);
+  color: var(--vi-cream, #f1eee7);
+}
+.stage-404-text { margin-top: 12px; font-size: 14px; line-height: 1.6; color: rgb(241 238 231 / .6); }
+.stage-404-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1px solid rgb(233 173 181 / .35);
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--vi-rose-200, #e9adb5);
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.stage-404-link:hover { background: rgb(233 173 181 / .08); border-color: var(--vi-rose-200, #e9adb5); }

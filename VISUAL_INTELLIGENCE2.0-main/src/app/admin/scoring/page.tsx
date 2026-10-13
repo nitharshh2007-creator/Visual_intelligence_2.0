@@ -1,7 +1,6 @@
-import AdminScoringClient from "./AdminScoringClient";
+import { redirect } from "next/navigation";
 
-export const instant = false;
-
+// Scoring now lives on the Teams & Shortlisting page.
 export default function AdminScoringPage() {
-  return <AdminScoringClient />;
+  redirect("/admin/teams");
 }

@@ -488,7 +488,7 @@ export function subscribeAdminRealtime(onChange: () => void): () => void {
   const channel = supabase
     .channel(channelName)
     .on("postgres_changes", { event: "*", schema: "public", table: "teams" }, onChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "team_members" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "members" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "scores" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "qualifiers" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "shortlist" }, onChange)

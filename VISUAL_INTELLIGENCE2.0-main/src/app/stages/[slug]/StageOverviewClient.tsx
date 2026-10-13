@@ -7,9 +7,10 @@ import { motion } from "framer-motion";
 import { useStageGate } from "@/hooks/useStageGate";
 import { getStageAccess } from "@/lib/stageAccess";
 import type { StageAccessEntry } from "@/lib/supabase";
-import StageLockCard from "@/components/stages/StageLockCard";
+import StageLockCard, { StageNotFound, isEliminatedAccess } from "@/components/stages/StageLockCard";
 import StageProgressRail from "@/components/stages/StageProgressRail";
 import CyberThemeCard from "@/components/stages/CyberThemeCard";
+import Loader from "@/components/ui/Loader";
 import { OFFICIAL_GAME_RULES } from "@/data/officialGameRules";
 import { FileText, CheckCircle2, AlertCircle, ArrowRight, ShieldAlert, Sparkles, ExternalLink, Laptop, Bug, Video, Trophy, Download, Code, Globe } from "lucide-react";
 
@@ -43,11 +44,13 @@ export default function StageOverviewClient() {
     getStageAccess(session?.teamCode, session?.regNo).then(setAllStages);
   }, [session?.teamCode, session?.regNo, entry?.stage_status]);
 
-  if (!hydrated) return null;
+  if (!hydrated) return <Loader label="Loading stage" tone="dark" />;
 
   if (!entry) {
     return <div className="p-8 text-center text-white/50">Stage not found</div>;
   }
+
+  if (isEliminatedAccess(entry.state, entry.reason)) return <StageNotFound />;
 
   const isEnded = entry.stage_status === "ended" || entry.reason === "stage_ended";
 
@@ -86,8 +89,8 @@ export default function StageOverviewClient() {
       {allStages.length > 0 && <StageProgressRail stages={allStages} />}
 
       {entry.stage_status === "ended" && (
-        <div className="p-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 text-center">
-          <p className="text-sm font-bold uppercase tracking-wider text-amber-200">Stage Ended</p>
+        <div className="p-4 rounded-2xl border border-champagne-400/30 bg-champagne-400/10 text-center">
+          <p className="text-sm font-bold uppercase tracking-wider text-champagne-200">Stage Ended</p>
           <p className="text-xs text-white/70 mt-1">
             {entry.stage < 4
               ? "The host has concluded this round. Submissions are closed; check the stage list for results and the next release."
@@ -111,8 +114,8 @@ export default function StageOverviewClient() {
             LEVEL 0{stage.number} OF 04
           </span>
           {isLive && (
-            <span className="flex items-center gap-1.5 px-3.5 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-[10px] tracking-widest text-emerald-300 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 lb-live-dot" /> LIVE NOW
+            <span className="flex items-center gap-1.5 px-3.5 py-1 bg-champagne-500/10 border border-champagne-500/30 rounded-full text-[10px] tracking-widest text-champagne-300 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-champagne-400 lb-live-dot" /> LIVE NOW
             </span>
           )}
         </div>
@@ -160,9 +163,9 @@ export default function StageOverviewClient() {
 
       {/* Cyber Styling Starter HTML Actions (Always accessible for Level 1) */}
       {stage.slug === "cyber-styling" && (
-        <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="p-5 sm:p-6 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-cyan-500/5">
+        <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="p-5 sm:p-6 rounded-2xl bg-wine-950/20 border border-wine-500/30 flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-wine-500/5">
           <div className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+            <div className="p-3 rounded-xl bg-wine-500/10 border border-wine-500/30 text-wine-400">
               <Code className="w-6 h-6" />
             </div>
             <div>
@@ -193,7 +196,7 @@ export default function StageOverviewClient() {
                   window.location.href = "/api/cyber-style/download";
                 }
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-mono font-bold transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-wine-500 hover:bg-wine-400 text-white text-xs font-mono font-bold transition-all shadow-md shadow-wine-500/20 cursor-pointer"
             >
               <Code className="w-3.5 h-3.5" />
               <span>Download as Code (.txt)</span>
@@ -212,7 +215,7 @@ export default function StageOverviewClient() {
       )}
 
       {/* Mission Overview */}
-      <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="p-6 sm:p-8 rounded-2xl bg-white/[0.03] border border-white/10 shadow-xl">
+      <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="p-6 sm:p-8 lb-panel rounded-2xl bg-white/[0.03] border border-white/10 shadow-xl">
         <div className="flex items-center gap-2.5 mb-4">
           <span className="w-1.5 h-5 rounded-full bg-[var(--lb-burgundy-500)]" />
           <h2 className="text-xs font-mono font-bold tracking-[0.2em] text-[#e9adb5] uppercase">Mission Overview</h2>
@@ -225,16 +228,16 @@ export default function StageOverviewClient() {
       {/* How to Play & Rules Grid */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* How to Play (Step-by-step instructions) */}
-        <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="p-6 sm:p-8 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+        <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="p-6 sm:p-8 lb-panel rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2.5 mb-5">
-              <span className="w-1.5 h-5 rounded-full bg-cyan-400" />
-              <h2 className="text-xs font-mono font-bold tracking-[0.2em] text-cyan-300 uppercase">How to Play</h2>
+              <span className="w-1.5 h-5 rounded-full bg-wine-400" />
+              <h2 className="text-xs font-mono font-bold tracking-[0.2em] text-wine-300 uppercase">How to Play</h2>
             </div>
             <ol className="space-y-3.5">
               {howToPlaySteps.map((step, i) => (
                 <li key={i} className="flex gap-3 text-white/80 text-xs sm:text-sm leading-relaxed">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-mono text-xs flex items-center justify-center font-bold">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-wine-500/15 border border-wine-500/30 text-wine-300 font-mono text-xs flex items-center justify-center font-bold">
                     {i + 1}
                   </span>
                   <span className="pt-0.5">{step}</span>
@@ -245,7 +248,7 @@ export default function StageOverviewClient() {
         </motion.div>
 
         {/* Rules of Engagement */}
-        <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.1 }} className="p-6 sm:p-8 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+        <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.1 }} className="p-6 sm:p-8 lb-panel rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2.5 mb-5">
               <span className="w-1.5 h-5 rounded-full bg-[var(--lb-burgundy-500)]" />
@@ -265,14 +268,14 @@ export default function StageOverviewClient() {
 
       {/* Team Roles */}
       {teamRoles.length > 0 && (
-        <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="p-6 sm:p-8 rounded-2xl bg-white/[0.03] border border-white/10">
+        <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="p-6 sm:p-8 lb-panel rounded-2xl bg-white/[0.03] border border-white/10">
           <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
-              <span className="w-1.5 h-5 rounded-full bg-amber-400" />
-              <h2 className="text-xs font-mono font-bold tracking-[0.2em] text-amber-300 uppercase">Team Roles & Responsibilities</h2>
+              <span className="w-1.5 h-5 rounded-full bg-champagne-400" />
+              <h2 className="text-xs font-mono font-bold tracking-[0.2em] text-champagne-300 uppercase">Team Roles & Responsibilities</h2>
             </div>
             {stage.slug === "prompt-charades" && (
-              <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] font-mono text-amber-300">
+              <span className="px-3 py-1 rounded-full bg-champagne-500/10 border border-champagne-500/30 text-[10px] font-mono text-champagne-300">
                 Observer sees image · Prompter must not see it directly
               </span>
             )}
@@ -305,12 +308,12 @@ export default function StageOverviewClient() {
       <motion.div
         {...fadeUp}
         transition={{ duration: 0.5 }}
-        className="p-6 sm:p-8 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 shadow-xl shadow-emerald-950/10 flex flex-wrap items-center justify-between gap-6"
+        className="p-6 sm:p-8 rounded-2xl border border-champagne-500/30 bg-champagne-950/20 shadow-xl shadow-champagne-950/10 flex flex-wrap items-center justify-between gap-6"
       >
         <div className="space-y-1.5 max-w-xl">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-300">Required Submission</h3>
+            <CheckCircle2 className="w-5 h-5 text-champagne-400" />
+            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-champagne-300">Required Submission</h3>
           </div>
           <p className="text-sm text-white/90 font-medium">
             {requiredOutput}
@@ -330,7 +333,7 @@ export default function StageOverviewClient() {
               href={officialRule.formUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-mono font-bold text-xs uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-champagne-500 hover:bg-champagne-400 text-black font-mono font-bold text-xs uppercase tracking-wider transition-all shadow-md shadow-champagne-500/20"
             >
               <span>Official Google Form</span>
               <ExternalLink className="w-4 h-4" />
@@ -343,10 +346,10 @@ export default function StageOverviewClient() {
       <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="text-center pt-4">
         <Link
           href={`/stages/${slug}/challenge`}
-          className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white text-black font-bold text-xs sm:text-sm uppercase tracking-widest hover:scale-105 transition-transform shadow-xl shadow-white/10"
+          className="lb-cta group inline-flex items-center gap-3 px-8 py-4 rounded-full font-bold text-xs sm:text-sm uppercase tracking-widest"
         >
           <span>{entry.stage_status === "ended" ? "View Stage Materials" : "Enter Challenge & Materials"}</span>
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
         </Link>
       </motion.div>
     </div>

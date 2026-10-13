@@ -1,6 +1,7 @@
+import "./landing.css";
 import Navbar from "@/components/Navbar";
-import EventStrip from "@/components/EventStrip";
 import Hero from "@/components/Hero";
+import Marquee from "@/components/Marquee";
 import About from "@/components/About";
 import StageCards from "@/components/StageCards";
 import HowToJoin from "@/components/HowToJoin";
@@ -12,11 +13,11 @@ export default function Home() {
   return (
     <main id="main-content" className="landing-page min-h-screen">
       <Navbar />
-      <EventStrip />
       <Hero />
       <About />
       <StageCards />
       <HowToJoin />
+      <Marquee />
       <FAQ />
       <FinalCTA />
       <Footer />

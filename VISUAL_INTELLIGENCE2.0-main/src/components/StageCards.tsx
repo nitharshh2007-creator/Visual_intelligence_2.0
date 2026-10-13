@@ -1,29 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { loadSession } from "@/lib/registration";
 import { getStageAccess } from "@/lib/stageAccess";
 import type { StageAccessEntry } from "@/lib/supabase";
+import StageArt from "./stages/StageArt";
+import Reveal, { MaskedWords } from "./fx/Reveal";
 
 // Anti-leak (Phase 3 Section C): this used to import a static `stages`
 // array with every stage's name/hook baked into the client bundle and
 // rendered unconditionally — a locked stage's content was visible to
 // any anonymous visitor on the homepage. It now asks get_stage_access()
-// the same way /stages does: name is null (so we fall back to "Stage N")
+// the same way /stages does: name is null (so the title stays redacted)
 // unless the stage is released or reveal_stage_names is on, and there is
 // no hook/rules/content line here at all — that detail only ever lives
-// behind get_stage_content() on the gated stage pages.
+// behind get_stage_content() on the gated stage pages. The per-stage
+// artwork (StageArt) is keyed by stage number and is content-free.
 const STATUS_LABEL: Record<string, string> = {
   LOCKED: "Locked",
   RELEASED: "Opens soon",
   LIVE: "Live now",
   COMPLETED: "Completed",
-  ELIMINATED: "Closed",
+  ELIMINATED: "Not found",
 };
+
+// One status line per state — describes access, never the challenge.
+function statusLine(stage: StageAccessEntry): string {
+  if (stage.state === "LIVE") return "Live now. Enter with your team.";
+  if (stage.stage_status === "ended") return "This stage has ended.";
+  if (stage.state === "COMPLETED") return "Completed. Revisit it any time.";
+  if (stage.state === "RELEASED") return "Released. It opens soon.";
+  if (stage.state === "ELIMINATED") return "Oops! Stage not found.";
+  return "Sealed until it unlocks, in order.";
+}
 
 export default function StageCards() {
   const [stages, setStages] = useState<StageAccessEntry[]>([]);
@@ -48,8 +60,8 @@ export default function StageCards() {
     };
   }, []);
 
-  const displayStages: StageAccessEntry[] = stages.length > 0 
-    ? stages 
+  const displayStages: StageAccessEntry[] = stages.length > 0
+    ? stages
     : [1, 2, 3, 4].map((s) => ({
         stage: s,
         slug: "",
@@ -59,82 +71,99 @@ export default function StageCards() {
         stage_status: "not_released" as const,
       }));
 
-  return (
-    <section 
-      id="stages" 
-      data-desk 
-      className="py-32 px-6 lg:px-12 text-brand-fg relative z-10"
-    >
-      <div className="page-col">
-        <h2 className="font-serif text-4xl md:text-5xl mb-16 border-b border-brand-fg/10 pb-8">
-          The Stages
-        </h2>
+  // The panel that is open by default (desktop) — the live stage if
+  // there is one, else the furthest stage the team can reach, else 01.
+  const liveIdx = displayStages.findIndex((s) => s.state === "LIVE");
+  const reachIdx = displayStages.map((s) => s.state !== "LOCKED").lastIndexOf(true);
+  const featuredIdx = liveIdx >= 0 ? liveIdx : Math.max(reachIdx, 0);
+  // How far the journey rail is lit: through the furthest non-locked stage.
+  const progress = reachIdx < 0 ? 0 : (reachIdx + 1) / displayStages.length;
 
-        {/* 2x2 card grid with ink top border & 1px hairlines between cards */}
-        <div className="border-t border-brand-fg grid grid-cols-1 min-[760px]:grid-cols-2 divide-y divide-brand-fg/10 min-[760px]:divide-y-0">
+  return (
+    <section id="stages" className="stages-section">
+      <div className="landing-col">
+        <Reveal as="header" className="stages-head">
+          <div>
+            <span className="section-eyebrow">The Journey · 0{displayStages.length} Stages</span>
+            <h2 className="section-title">
+              <MaskedWords text="Four stages of" /> <em><MaskedWords text="chaos." offset={3} /></em>
+            </h2>
+          </div>
+          <p className="stages-note">
+            Unlocked one at a time, in order. Each stage&apos;s name stays sealed until it is released.
+          </p>
+        </Reveal>
+
+        <Reveal as="ol" className="stage-list" style={{ "--progress": progress } as CSSProperties}>
           {displayStages.map((stage, idx) => {
             const isLive = stage.state === "LIVE";
             const isCompleted = stage.state === "COMPLETED";
             const isEnded = stage.stage_status === "ended";
             const accessible = isLive || isCompleted;
-            const stageName = stage.name ?? `Stage ${stage.stage}`;
+            const interactive = accessible && !!stage.slug;
+            const num = String(stage.stage).padStart(2, "0");
+            const stateKey = isEnded && !isLive ? "ended" : stage.state.toLowerCase();
 
-            const card = (
-              <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{ duration: 0.65, delay: idx * 0.08, ease: [0.76, 0, 0.24, 1] }}
-                whileHover={{ scale: accessible ? 1.01 : 1 }}
-                className={`p-6 lg:p-8 flex flex-col justify-between min-h-[260px] lg:min-h-[300px] group transition-colors duration-200 hover:bg-black/[0.03] border-brand-fg/10 ${
-                  idx % 2 === 0 ? "min-[760px]:border-r" : ""
-                } ${idx < 2 ? "min-[760px]:border-b" : ""}`}
+            return (
+              <li
+                key={stage.stage}
+                className="stage-panel"
+                data-stage={Math.min(stage.stage, 4)}
+                data-state={stateKey}
+                data-interactive={interactive || undefined}
+                data-featured={idx === featuredIdx || undefined}
+                style={{ "--i": idx } as CSSProperties}
               >
-                <div>
-                  <span className="font-sans text-[14px] uppercase tracking-[0.15em] text-brand-fg/40 block mb-6">
-                    0{stage.stage}
-                  </span>
-                  <h3
-                    className={`font-serif text-[clamp(36px,3.6vw,52px)] leading-[1.05] tracking-tight transition-colors ${
-                      isLive ? "italic text-brand-accent" : "text-brand-fg group-hover:text-brand-accent"
-                    }`}
-                  >
-                    {stageName}
-                  </h3>
-                </div>
-
-                <div className="mt-8 pt-4">
-                  {isLive ? (
-                    <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-brand-accent bg-brand-accent text-brand-bg text-[12px] font-sans uppercase tracking-[0.2em] font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-brand-bg animate-pulse" />
-                      Live
-                    </span>
-                  ) : isEnded ? (
-                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-brand-fg/30 text-brand-fg/80 text-[12px] font-sans uppercase tracking-[0.2em] font-medium">
-                      Stage Ended
-                    </span>
-                  ) : isCompleted ? (
-                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-brand-fg/30 text-brand-fg/80 text-[12px] font-sans uppercase tracking-[0.2em] font-medium">
-                      <Check className="w-3.5 h-3.5" /> Completed
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-brand-fg/20 text-brand-fg/60 text-[12px] font-sans uppercase tracking-[0.2em]">
-                      {STATUS_LABEL[stage.state] ?? "Locked"}
-                    </span>
+                <span className="stage-marker" aria-hidden="true"><span>{num}</span></span>
+                <div className="stage-panel-card">
+                  <div className="stage-panel-art" aria-hidden="true"><StageArt stage={stage.stage} /></div>
+                  <span className="stage-panel-num" aria-hidden="true">{num}</span>
+                  {!interactive && stage.state !== "LIVE" && (
+                    <span className="stage-panel-seal" aria-hidden="true"><Lock /></span>
                   )}
-                </div>
-              </motion.div>
-            );
 
-            return accessible && stage.slug ? (
-              <Link key={stage.stage} href={`/stages/${stage.slug}`} className="block">
-                {card}
-              </Link>
-            ) : (
-              <div key={stage.stage}>{card}</div>
+                  <div className="stage-panel-body">
+                    <span className="stage-panel-kicker">Stage {num}</span>
+                    <h3 className="stage-panel-title">
+                      {interactive ? (
+                        <Link href={`/stages/${stage.slug}`} className="stage-panel-link">
+                          {stage.name ?? `Stage ${stage.stage}`}
+                        </Link>
+                      ) : stage.name ? (
+                        stage.name
+                      ) : (
+                        <>
+                          <span className="stage-redacted" aria-hidden="true"><i /><i /></span>
+                          <span className="sr-only">Stage {stage.stage} — name revealed when it opens</span>
+                        </>
+                      )}
+                    </h3>
+                    <p className="stage-panel-desc">{statusLine(stage)}</p>
+                    <div className="stage-panel-foot">
+                      {isLive ? (
+                        <span className="stage-pill stage-pill-live"><span className="stage-pill-dot" />Live</span>
+                      ) : isEnded ? (
+                        <span className="stage-pill">Stage Ended</span>
+                      ) : isCompleted ? (
+                        <span className="stage-pill"><Check aria-hidden="true" />Completed</span>
+                      ) : (
+                        <span className="stage-pill stage-pill-locked">
+                          <Lock aria-hidden="true" />
+                          {STATUS_LABEL[stage.state] ?? "Locked"}
+                        </span>
+                      )}
+                      {interactive && (
+                        <span className="stage-panel-cta" aria-hidden="true">
+                          Enter <span className="button-arrow">→</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </li>
             );
           })}
-        </div>
+        </Reveal>
       </div>
     </section>
   );

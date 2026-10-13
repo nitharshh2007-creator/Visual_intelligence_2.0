@@ -11,6 +11,7 @@ import { Suspense } from "react";
 import "@/app/lb-theme.css";
 import Navbar from "@/components/Navbar";
 import TeamGate from "@/components/stages/TeamGate";
+import TeamBadge from "@/components/stages/TeamBadge";
 
 export default function StagesLayout({
   children,
@@ -27,6 +28,7 @@ export default function StagesLayout({
       </div>
 
       <Navbar />
+      <TeamBadge />
 
       <main className="pt-32 pb-16 relative z-10">
         {/* The nested [slug] layout+pages are entirely client-rendered

@@ -3,9 +3,10 @@
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useStageGate } from "@/hooks/useStageGate";
-import StageLockCard from "@/components/stages/StageLockCard";
+import StageLockCard, { StageNotFound, isEliminatedAccess } from "@/components/stages/StageLockCard";
 import BugxPasswordPanel from "./BugxPasswordPanel";
 import CyberThemeCard from "@/components/stages/CyberThemeCard";
+import Loader from "@/components/ui/Loader";
 import { CUTOFFS } from "@/data/event";
 import { FileText, ExternalLink, Code, Globe, Download, AlertTriangle } from "lucide-react";
 
@@ -15,17 +16,18 @@ export default function StageChallengeClient() {
 
   const isEnded = entry?.stage_status === "ended" || entry?.reason === "stage_ended";
 
-  if (!hydrated) return null;
+  if (!hydrated) return <Loader label="Loading challenge" tone="dark" />;
   if (!entry) return <div className="p-8 text-center text-white/50">Stage not found</div>;
+  if (isEliminatedAccess(entry.state, entry.reason)) return <StageNotFound />;
 
   if (isEnded && !content) {
     return (
       <div className="max-w-xl mx-auto py-16 px-4 text-center space-y-6">
-        <div className="w-16 h-16 mx-auto rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-300">
+        <div className="w-16 h-16 mx-auto rounded-full bg-champagne-500/10 border border-champagne-500/30 flex items-center justify-center text-champagne-300">
           <AlertTriangle className="w-8 h-8" />
         </div>
         <div className="space-y-2">
-          <span className="text-[10px] font-mono tracking-widest text-amber-400 uppercase">Stage Concluded</span>
+          <span className="text-[10px] font-mono tracking-widest text-champagne-400 uppercase">Stage Concluded</span>
           <h1 className="text-2xl font-serif text-white uppercase tracking-wider">This Stage Has Ended</h1>
           <p className="text-white/60 text-sm leading-relaxed max-w-md mx-auto">
             The organizer has ended this round. Challenge materials and official Google Form submissions for this stage are now closed.
@@ -34,7 +36,7 @@ export default function StageChallengeClient() {
         <div>
           <Link
             href={`/stages/${slug}`}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-black text-xs font-mono font-bold uppercase tracking-wider hover:scale-105 transition-transform"
+            className="lb-cta inline-flex items-center gap-2 px-6 py-3 rounded-full text-xs font-mono font-bold uppercase tracking-wider"
           >
             <span>View Stage Rules & Overview</span>
           </Link>
@@ -53,8 +55,8 @@ export default function StageChallengeClient() {
   return (
     <div className="space-y-8 pb-16">
       {isEnded && (
-        <div className="p-4 rounded-xl border border-amber-400/30 bg-amber-400/10 text-center">
-          <p className="text-sm font-bold uppercase tracking-wider text-amber-200">Stage Ended</p>
+        <div className="p-4 rounded-xl border border-champagne-400/30 bg-champagne-400/10 text-center">
+          <p className="text-sm font-bold uppercase tracking-wider text-champagne-200">Stage Ended</p>
           <p className="text-xs text-white/70 mt-1">
             This stage has ended. Submissions and Google Forms are closed.
           </p>
@@ -67,9 +69,9 @@ export default function StageChallengeClient() {
 
       {slug === "cyber-styling" && (
         <>
-          <div className="p-6 border border-cyan-500/30 bg-cyan-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-cyan-500/5">
+          <div className="p-6 border border-wine-500/30 bg-wine-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-wine-500/5">
             <div className="flex items-center gap-3.5">
-              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+              <div className="p-3 rounded-xl bg-wine-500/10 border border-wine-500/30 text-wine-400">
                 <Code className="w-6 h-6" />
               </div>
               <div>
@@ -100,7 +102,7 @@ export default function StageChallengeClient() {
                     window.location.href = "/api/cyber-style/download";
                   }
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-mono font-bold transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-wine-500 hover:bg-wine-400 text-white text-xs font-mono font-bold transition-all shadow-md shadow-wine-500/20 cursor-pointer"
               >
                 <Code className="w-3.5 h-3.5" />
                 <span>Download as Code (.txt)</span>
@@ -134,9 +136,9 @@ export default function StageChallengeClient() {
 
       {/* Stage 1 Submission Form Attachment */}
       {slug === "cyber-styling" && (
-        <div className="p-6 border border-emerald-500/30 bg-emerald-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-emerald-500/5">
+        <div className="p-6 border border-champagne-500/30 bg-champagne-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-champagne-500/5">
           <div className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+            <div className="p-3 rounded-xl bg-champagne-500/10 border border-champagne-500/30 text-champagne-400">
               <FileText className="w-6 h-6" />
             </div>
             <div>
@@ -157,7 +159,7 @@ export default function StageChallengeClient() {
               href="https://docs.google.com/forms/d/e/1FAIpQLScX1EqwjTGJmmcBORdVcxPS6UxLmAho1b9Mzm-jCF5--ZMuhQ/viewform?usp=publish-editor"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-mono font-bold transition-all shadow-md shadow-emerald-500/20"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-champagne-500 hover:bg-champagne-400 text-black text-xs font-mono font-bold transition-all shadow-md shadow-champagne-500/20"
             >
               <span>Open Google Form</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -168,9 +170,9 @@ export default function StageChallengeClient() {
 
       {/* Stage 3 (Prompt Rumble) Google Form Attachment */}
       {slug === "prompt-rumble" && (
-        <div className="p-6 border border-cyan-500/30 bg-cyan-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-cyan-500/5">
+        <div className="p-6 border border-wine-500/30 bg-wine-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-wine-500/5">
           <div className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+            <div className="p-3 rounded-xl bg-wine-500/10 border border-wine-500/30 text-wine-400">
               <FileText className="w-6 h-6" />
             </div>
             <div>
@@ -191,7 +193,7 @@ export default function StageChallengeClient() {
               href="https://docs.google.com/forms/d/e/1FAIpQLSfTr-yvIy-TcD40SlyXOC52rJPZn_pp4--tSuZ0zQDW8B6XeA/viewform"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-mono font-bold transition-all shadow-md shadow-cyan-500/20"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-wine-500 hover:bg-wine-400 text-white text-xs font-mono font-bold transition-all shadow-md shadow-wine-500/20"
             >
               <span>Open Google Form</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -202,9 +204,9 @@ export default function StageChallengeClient() {
 
       {/* Stage 4 (Prompt Charades) Google Form Attachment */}
       {slug === "prompt-charades" && (
-        <div className="p-6 border border-purple-500/30 bg-purple-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-purple-500/5">
+        <div className="p-6 border border-wine-500/30 bg-wine-950/20 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-lg shadow-wine-500/5">
           <div className="flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
+            <div className="p-3 rounded-xl bg-wine-500/10 border border-wine-500/30 text-wine-400">
               <FileText className="w-6 h-6" />
             </div>
             <div>
@@ -225,7 +227,7 @@ export default function StageChallengeClient() {
               href="https://docs.google.com/forms/d/e/1FAIpQLSetBbJZyIyvgTcRv1owaleEwUWUe1zmlHII6JUm7rCFHz_PFg/viewform"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white text-xs font-mono font-bold transition-all shadow-md shadow-purple-500/20"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-wine-500 hover:bg-wine-400 text-white text-xs font-mono font-bold transition-all shadow-md shadow-wine-500/20"
             >
               <span>Open Google Form</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -241,9 +243,9 @@ export default function StageChallengeClient() {
       ) : (
         <div className="grid gap-6">
           {assets.map((asset) => (
-            <div key={asset.id} className="p-6 border border-white/10 bg-white/5 rounded-xl">
-              <div className="flex items-start justify-between gap-4">
-                <div>
+            <div key={asset.id} className="lb-panel p-6 border border-white/10 bg-white/5 rounded-xl">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
                   <h3 className="text-white font-medium text-lg">{asset.label || asset.kind}</h3>
                   <p className="text-sm text-white/50 mt-1 uppercase tracking-widest text-[10px]">{asset.kind}</p>
                 </div>

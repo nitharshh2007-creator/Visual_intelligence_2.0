@@ -95,10 +95,10 @@ export default function CyberThemeCard({ teamCode, regNo, isEnded }: Props) {
 
   if (loading) {
     return (
-      <div className="p-8 rounded-2xl border border-cyan-500/30 bg-black/40 backdrop-blur-md animate-pulse space-y-4">
+      <div className="p-8 rounded-2xl border border-wine-500/30 bg-black/40 backdrop-blur-md animate-pulse space-y-4">
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded-full bg-cyan-400" />
-          <div className="h-4 w-56 bg-cyan-500/20 rounded font-mono" />
+          <div className="h-3 w-3 rounded-full bg-wine-400" />
+          <div className="h-4 w-56 bg-wine-500/20 rounded font-mono" />
         </div>
         <div className="h-12 w-2/3 bg-white/10 rounded" />
         <div className="grid gap-3 pt-2">
@@ -134,28 +134,28 @@ export default function CyberThemeCard({ teamCode, regNo, isEnded }: Props) {
   }
 
   const { theme, team_name } = data;
-  const primaryColor = theme.palette[1]?.hex || theme.palette[0]?.hex || "#00e5ff";
+  const primaryColor = theme.palette[1]?.hex || theme.palette[0]?.hex || "#e9adb5";
 
   return (
     <motion.section
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-[#090b16] via-[#0d1024] to-[#060810] p-6 md:p-8 shadow-2xl backdrop-blur-xl"
+      className="relative overflow-hidden rounded-2xl border border-wine-500/30 bg-gradient-to-b from-[#1f1416] via-[#170e10] to-[#0e0909] p-6 md:p-8 shadow-2xl backdrop-blur-xl"
       style={{
-        boxShadow: `0 0 50px -15px ${primaryColor}40`,
+        boxShadow: "0 0 50px -15px rgb(168 50 74 / .35)",
       }}
     >
       {/* Decorative Cyber Grids */}
-      <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: primaryColor }} />
-      <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: theme.palette[2]?.hex || "#ff007f" }} />
+      <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: "#a8324a" }} />
+      <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: "#6b0f1a" }} />
 
       {/* Top Header Tag */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6 border-b border-white/10 pb-4">
         <div className="flex items-center gap-2">
-          <span className="flex h-2.5 w-2.5 rounded-full bg-cyan-400 animate-pulse" />
-          <span className="text-[11px] font-mono tracking-widest uppercase text-cyan-300 font-bold flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="flex h-2.5 w-2.5 rounded-full bg-wine-400 animate-pulse" />
+          <span className="text-[11px] font-mono tracking-widest uppercase text-wine-300 font-bold flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-wine-400" />
             ROUND 1 // OFFICIAL THEME ASSIGNMENT
           </span>
         </div>
@@ -182,22 +182,22 @@ export default function CyberThemeCard({ teamCode, regNo, isEnded }: Props) {
         <div className="grid gap-3 pt-2">
           {/* Line 1: Visual Style */}
           <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 flex items-start gap-3.5">
-            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 shrink-0 mt-0.5">
+            <div className="p-2 rounded-lg bg-wine-500/10 border border-wine-500/30 text-wine-300 shrink-0 mt-0.5">
               <Palette className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-mono tracking-wider uppercase text-cyan-300 block font-bold mb-0.5">Visual Style & Palette</span>
+              <span className="text-[10px] font-mono tracking-wider uppercase text-wine-300 block font-bold mb-0.5">Visual Style & Palette</span>
               <p className="text-sm md:text-base text-white/90 leading-relaxed font-sans">{theme.description_line1}</p>
             </div>
           </div>
 
           {/* Line 2: What to Create */}
           <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 flex items-start gap-3.5">
-            <div className="p-2 rounded-lg bg-pink-500/10 border border-pink-500/30 text-pink-300 shrink-0 mt-0.5">
+            <div className="p-2 rounded-lg bg-wine-500/10 border border-wine-500/30 text-wine-300 shrink-0 mt-0.5">
               <Target className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-mono tracking-wider uppercase text-pink-300 block font-bold mb-0.5">Team Objective // What to Build</span>
+              <span className="text-[10px] font-mono tracking-wider uppercase text-wine-300 block font-bold mb-0.5">Team Objective // What to Build</span>
               <p className="text-sm md:text-base text-white/90 leading-relaxed font-sans">{theme.description_line2}</p>
             </div>
           </div>
@@ -224,7 +224,7 @@ export default function CyberThemeCard({ teamCode, regNo, isEnded }: Props) {
                   <span className="text-white/80 group-hover:text-white font-medium">{color.name}</span>
                   <span className="text-white/40 text-[10px] uppercase">{color.hex}</span>
                   {isCopied ? (
-                    <Check className="w-3 h-3 text-emerald-400 ml-1" />
+                    <Check className="w-3 h-3 text-champagne-400 ml-1" />
                   ) : (
                     <Copy className="w-3 h-3 text-white/20 group-hover:text-white/60 ml-1" />
                   )}
@@ -237,7 +237,7 @@ export default function CyberThemeCard({ teamCode, regNo, isEnded }: Props) {
         {/* Directives & Quick Action */}
         <div className="pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-xs text-white/60">
-            <Terminal className="w-4 h-4 text-cyan-400" />
+            <Terminal className="w-4 h-4 text-wine-400" />
             <span>Rule: Prompt GenAI to restyle the base HTML file. No direct coding allowed.</span>
           </div>
 
@@ -262,7 +262,7 @@ export default function CyberThemeCard({ teamCode, regNo, isEnded }: Props) {
                   window.location.href = "/api/cyber-style/download";
                 }
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-mono font-bold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-wine-500 hover:bg-wine-400 text-white text-xs font-mono font-bold transition-colors cursor-pointer"
             >
               <Code className="w-3.5 h-3.5" />
               Download as Code (.txt)
@@ -286,7 +286,7 @@ export default function CyberThemeCard({ teamCode, regNo, isEnded }: Props) {
                 href="https://docs.google.com/forms/d/e/1FAIpQLScX1EqwjTGJmmcBORdVcxPS6UxLmAho1b9Mzm-jCF5--ZMuhQ/viewform?usp=publish-editor"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-mono font-bold transition-colors shadow-lg shadow-emerald-500/20"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-champagne-500 hover:bg-champagne-400 text-black text-xs font-mono font-bold transition-colors shadow-lg shadow-champagne-500/20"
               >
                 <FileText className="w-3.5 h-3.5" />
                 Submit Work (Google Form)

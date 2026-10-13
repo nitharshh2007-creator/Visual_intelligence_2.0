@@ -6,20 +6,51 @@ import {
   adminAddMember, adminDeleteTeam, adminMoveMember, adminRemoveMember,
   adminRenameTeam, adminSetShortlistDecision, subscribeAdminRealtime, AdminError,
   adminGetMasterTeamDirectory, adminSaveLevel3Shortlist, adminConfirmLevel4Finalists,
-  adminRecordScoreEntry, adminUpdateEliminationReason, adminBulkShortlistTeams,
+  adminRecordScoreEntry, adminUpdateEliminationReason, adminSetShortlistConfig,
   type MasterTeamRecord, type MasterShortlistResponse
 } from "@/lib/admin";
 import {
   Users, CheckCircle2, XCircle, AlertTriangle, ShieldCheck,
   Search, SlidersHorizontal, ArrowUpDown, ChevronDown, ChevronRight,
   Edit2, Trash2, UserPlus, ArrowRightLeft, FileSpreadsheet,
-  Award, Clock, Eye, Sparkles, Filter, X, Check,
+  Award, Clock, Eye, Sparkles, Filter, X,
   Laptop, Bug, Video, UserX
 } from "lucide-react";
 
 type ActiveTab = "all" | "l1" | "l2" | "l3" | "l4" | "eliminated";
 type SubFilter = "all" | "eligible" | "shortlisted" | "not_shortlisted";
 type SortKey = "name" | "total" | "level" | "created_at" | "member_count";
+
+// Judge guide: every round is marked out of 25.
+const STAGE_MAX = 25;
+const STAGE_NAMES: Record<number, string> = { 1: "Cyber Styling", 2: "BugX Hacker", 3: "Prompt Rumble", 4: "Prompt Charades" };
+const RUBRICS: Record<number, Array<{ key: string; label: string; hint: string; max: number }>> = {
+  1: [
+    { key: "creativity", label: "Creativity / Originality", hint: "Fresh ideas, not a generic look", max: 5 },
+    { key: "functionality", label: "Functionality", hint: "Page works: buttons, links, scripts", max: 5 },
+    { key: "timing", label: "Timing", hint: "Submitted on time (Google Form time)", max: 5 },
+    { key: "output", label: "Output", hint: "Final page clearly matches the theme", max: 5 },
+    { key: "prompt_quality", label: "Prompt Quality", hint: "Clear, specific, refined prompts", max: 5 },
+  ],
+  2: [
+    { key: "password", label: "Correct password", hint: "Password from the ZIP is right", max: 10 },
+    { key: "code_word", label: "Correct code word", hint: "Code word from the PDF is right", max: 8 },
+    { key: "speed", label: "Speed", hint: "≤8 min 7 · 12 min 5 · 16 min 3 · 20 min 1", max: 7 },
+  ],
+  3: [
+    { key: "creativity", label: "Creativity", hint: "Original idea and treatment", max: 5 },
+    { key: "assets", label: "Use of 3 images + 3 words", hint: "All six used, clearly visible", max: 5 },
+    { key: "storytelling", label: "Storytelling", hint: "Clear beginning, point and ending in 30 sec", max: 5 },
+    { key: "prompt_ai", label: "Prompt / AI usage", hint: "Smart, specific use of AI tools", max: 5 },
+    { key: "ad_quality", label: "Final ad quality", hint: "Looks and sounds polished", max: 5 },
+  ],
+  4: [
+    { key: "communication", label: "Communication", hint: "Describers explained well without naming it", max: 5 },
+    { key: "prompt_quality", label: "Prompt quality", hint: "Guesser's prompt is clear and detailed", max: 5 },
+    { key: "visual", label: "Visual interpretation", hint: "Understood the key parts of the picture", max: 5 },
+    { key: "similarity", label: "Similarity to original", hint: "How close the image is to the original", max: 10 },
+  ],
+};
 
 interface EditMemberState {
   memberId: string;
@@ -51,17 +82,14 @@ export default function AdminTeamsClient() {
 
   // Selection states for Shortlisting (Level 2 -> Level 3)
   const [selectedForL3, setSelectedForL3] = useState<Set<string>>(new Set());
-  const [l2TargetQuota, setL2TargetQuota] = useState<number>(10);
+  const [l2Cutoff, setL2Cutoff] = useState<number | null>(null);
   const [showL2ConfirmModal, setShowL2ConfirmModal] = useState(false);
-  const [l2WarningAcknowledged, setL2WarningAcknowledged] = useState(false);
   const [isSavingL2Shortlist, setIsSavingL2Shortlist] = useState(false);
 
   // Selection states for Shortlisting (Level 3 -> Level 4)
   const [selectedForL4, setSelectedForL4] = useState<Set<string>>(new Set());
-  const [l3TargetQuota, setL3TargetQuota] = useState<number>(10);
-  const [unselectedReasons, setUnselectedReasons] = useState<Record<string, string>>({});
+  const [l3Cutoff, setL3Cutoff] = useState<number>(15);
   const [showL3ConfirmModal, setShowL3ConfirmModal] = useState(false);
-  const [l3WarningAcknowledged, setL3WarningAcknowledged] = useState(false);
   const [isSavingShortlist, setIsSavingShortlist] = useState(false);
 
   // Finalist confirmation (Level 4)
@@ -72,11 +100,7 @@ export default function AdminTeamsClient() {
   const [scoreModalTeam, setScoreModalTeam] = useState<{ team: MasterTeamRecord; stage: number } | null>(null);
   const [scoreInput, setScoreInput] = useState<string>("");
   const [scoreNote, setScoreNote] = useState<string>("");
-  const [cyberRubric, setCyberRubric] = useState<{ creativity: number; responsiveness: number; themeMatch: number }>({
-    creativity: 10,
-    responsiveness: 5,
-    themeMatch: 10,
-  });
+  const [rubric, setRubric] = useState<Record<string, string>>({});
 
   // Team Details Modal / Drawer
   const [detailTeam, setDetailTeam] = useState<MasterTeamRecord | null>(null);
@@ -101,6 +125,7 @@ export default function AdminTeamsClient() {
     try {
       const res = await adminGetMasterTeamDirectory();
       setData(res);
+      setL2Cutoff((prev) => prev ?? Math.min(Number(res.config?.combined_cutoff ?? 25), STAGE_MAX * 2));
       // Pre-populate Level 3 selection with already shortlisted teams
       const currentL3 = new Set(res.teams.filter((t) => t.shortlist_l3.decision === "shortlisted").map((t) => t.id));
       if (currentL3.size > 0 && selectedForL3.size === 0) {
@@ -142,8 +167,7 @@ export default function AdminTeamsClient() {
     if (activeTab === "l1") {
       // All teams are in Level 1
     } else if (activeTab === "l2") {
-      // Teams that completed L1 or are participating in L2
-      list = list.filter((t) => t.current_level >= 2 || t.scores.s1 !== null);
+      // No selection after Level 1 — every registered team plays Level 2
     } else if (activeTab === "l3") {
       // Teams eligible for Level 3 (shortlisted from L2)
       list = list.filter((t) => t.shortlist_l3.decision === "shortlisted");
@@ -163,7 +187,7 @@ export default function AdminTeamsClient() {
     // Filter by SubFilter
     if (subFilter === "eligible") {
       if (activeTab === "l2") {
-        list = list.filter((t) => t.current_level >= 2 || t.scores.s1 !== null || t.scores.s2 !== null);
+        list = list.filter((t) => t.scores.s1 !== null && t.scores.s2 !== null);
       } else if (activeTab === "l3") {
         list = list.filter((t) => t.shortlist_l3.decision === "shortlisted");
       } else if (activeTab === "l4") {
@@ -232,7 +256,10 @@ export default function AdminTeamsClient() {
     }
   };
 
-  // ── Level 2 Shortlist Actions ──
+  // ── Level 2 Shortlist Actions (cutoff on L1 + L2 combined) ──
+  const combinedL12 = (t: MasterTeamRecord) =>
+    t.scores.s1 !== null && t.scores.s2 !== null ? t.scores.s1 + t.scores.s2 : null;
+
   const toggleSelectTeamForL3 = (teamId: string) => {
     setSelectedForL3((prev) => {
       const next = new Set(prev);
@@ -242,30 +269,43 @@ export default function AdminTeamsClient() {
     });
   };
 
-  const selectTopNForL3 = (n: number) => {
-    if (!data) return;
-    const l2Eligible = data.teams
-      .filter((t) => t.current_level >= 2 || t.scores.s1 !== null || t.scores.s2 !== null)
-      .sort((a, b) => {
-        const aCombined = (a.scores.s1 ?? 0) + (a.scores.s2 ?? 0);
-        const bCombined = (b.scores.s1 ?? 0) + (b.scores.s2 ?? 0);
-        return bCombined - aCombined || b.scores.total - a.scores.total;
-      });
-    const topIds = l2Eligible.slice(0, n).map((t) => t.id);
-    setSelectedForL3(new Set(topIds));
-    notify(`Selected top ${topIds.length} teams based on Level 1 + Level 2 combined score.`);
+  const selectAboveL2Cutoff = () => {
+    if (!data || l2Cutoff === null) return;
+    const ids = data.teams.filter((t) => (combinedL12(t) ?? -1) >= l2Cutoff).map((t) => t.id);
+    setSelectedForL3(new Set(ids));
+    notify(`${ids.length} team(s) scored ${l2Cutoff}+ in Level 1 + Level 2 and are ticked.`);
   };
 
+  const l2MissingScores = useMemo(
+    () => (data?.teams ?? []).filter((t) => selectedForL3.has(t.id) && combinedL12(t) === null),
+    [data, selectedForL3]
+  );
+
   const handleSaveL2Shortlist = async () => {
+    if (!data) return;
     if (selectedForL3.size === 0) {
-      notify("Please select at least one team for Level 3.", "err");
+      notify("Tick at least one team for Level 3.", "err");
+      return;
+    }
+    if (l2MissingScores.length > 0) {
+      notify(`Enter Level 1 and Level 2 marks first for: ${l2MissingScores.map((t) => t.name).join(", ")}`, "err");
       return;
     }
     setIsSavingL2Shortlist(true);
     try {
-      const teamIds = Array.from(selectedForL3);
-      const res = await adminBulkShortlistTeams(teamIds);
-      notify(`Successfully shortlisted ${res?.shortlisted_count ?? teamIds.length} team(s) for Level 3!`);
+      if (l2Cutoff !== null) await adminSetShortlistConfig(l2Cutoff, 0, 0);
+      const writes = data.teams.flatMap((t) => {
+        if (selectedForL3.has(t.id)) {
+          return t.shortlist_l3.decision === "shortlisted" ? [] : [adminSetShortlistDecision(t.id, "shortlisted", undefined, true)];
+        }
+        return t.shortlist_l3.decision === "rejected"
+          ? []
+          : [adminSetShortlistDecision(t.id, "rejected", `Below Level 2 cutoff${l2Cutoff !== null ? ` (${l2Cutoff})` : ""}`)];
+      });
+      const results = await Promise.allSettled(writes);
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed) notify(`${failed} update(s) failed — check the list and save again.`, "err");
+      else notify(`${selectedForL3.size} team(s) shortlisted for Level 3. Only they can open Level 3.`);
       setShowL2ConfirmModal(false);
       loadData();
     } catch (err: unknown) {
@@ -275,30 +315,7 @@ export default function AdminTeamsClient() {
     }
   };
 
-  // ── Quick Advance Single-Click Handlers for L2 Onwards ──
-  const handleQuickAdvanceToL3 = async (team: MasterTeamRecord) => {
-    if (!confirm(`Shortlist ${team.name} for Level 3?`)) return;
-    try {
-      await adminSetShortlistDecision(team.id, "shortlisted", undefined, true);
-      notify(`${team.name} shortlisted for Level 3!`);
-      loadData();
-    } catch (err: unknown) {
-      notify(err instanceof Error ? err.message : "Failed to advance team", "err");
-    }
-  };
-
-  const handleQuickAdvanceToL4 = async (team: MasterTeamRecord) => {
-    if (!confirm(`Advance ${team.name} to Level 4 Finalists?`)) return;
-    try {
-      await adminSaveLevel3Shortlist([team.id], 1, {}, true);
-      notify(`${team.name} advanced to Level 4 Finalists!`);
-      loadData();
-    } catch (err: unknown) {
-      notify(err instanceof Error ? err.message : "Failed to advance team", "err");
-    }
-  };
-
-  // ── Level 3 Shortlist Actions ──
+  // ── Level 3 → Level 4 Selection (cutoff on L3 marks) ──
   const toggleSelectTeamForL4 = (teamId: string) => {
     setSelectedForL4((prev) => {
       const next = new Set(prev);
@@ -308,40 +325,24 @@ export default function AdminTeamsClient() {
     });
   };
 
-  const selectTopNForL4 = (n: number) => {
-    if (!data) return;
-    const l3Eligible = data.teams
-      .filter((t) => t.shortlist_l3.decision === "shortlisted")
-      .sort((a, b) => (b.scores.s3 ?? 0) - (a.scores.s3 ?? 0) || b.scores.total - a.scores.total);
-    const topIds = l3Eligible.slice(0, n).map((t) => t.id);
-    setSelectedForL4(new Set(topIds));
-    notify(`Selected top ${topIds.length} teams based on scores.`);
-  };
+  const l3Pool = useMemo(() => (data?.teams ?? []).filter((t) => t.shortlist_l3.decision === "shortlisted"), [data]);
 
-  const handleOpenL3ConfirmModal = () => {
-    if (selectedForL4.size === 0) {
-      notify("Please select at least one team for Level 4 shortlist.", "err");
-      return;
-    }
-    setL3WarningAcknowledged(false);
-    setShowL3ConfirmModal(true);
+  const selectAboveL3Cutoff = () => {
+    const ids = l3Pool.filter((t) => (t.scores.s3 ?? -1) >= l3Cutoff).map((t) => t.id);
+    setSelectedForL4(new Set(ids));
+    notify(`${ids.length} team(s) scored ${l3Cutoff}+ in Level 3 and are ticked.`);
   };
 
   const handleSaveL3Shortlist = async () => {
+    const ids = Array.from(selectedForL4).filter((id) => l3Pool.some((t) => t.id === id));
+    if (ids.length === 0) {
+      notify("Tick at least one Level 3 team for Level 4.", "err");
+      return;
+    }
     setIsSavingShortlist(true);
     try {
-      const res = await adminSaveLevel3Shortlist(
-        Array.from(selectedForL4),
-        l3TargetQuota,
-        unselectedReasons,
-        true
-      );
-      if (res && res.warning) {
-        notify(res.message, "err");
-        setIsSavingShortlist(false);
-        return;
-      }
-      notify(`Successfully shortlisted ${selectedForL4.size} teams for Level 4!`);
+      await adminSaveLevel3Shortlist(ids, ids.length, {}, true);
+      notify(`${ids.length} team(s) qualified for Level 4. Only they can open Level 4.`);
       setShowL3ConfirmModal(false);
       loadData();
     } catch (err: unknown) {
@@ -369,39 +370,60 @@ export default function AdminTeamsClient() {
     }
   };
 
-  // ── Score Entry Action ──
+  // ── Marks Entry (all four stages) ──
+  const canScore = (team: MasterTeamRecord, stage: number) =>
+    stage <= 2 || (stage === 3 ? team.shortlist_l3.decision === "shortlisted" : team.shortlist_l4.qualified);
+
+  const stageScore = (team: MasterTeamRecord, stage: number) =>
+    stage === 1 ? team.scores.s1 : stage === 2 ? team.scores.s2 : stage === 3 ? team.scores.s3 : team.scores.s4;
+
   const handleOpenScoreModal = (team: MasterTeamRecord, stage: number) => {
+    if (!canScore(team, stage)) {
+      notify(`${team.name} is not in Level ${stage}, so it can't get Level ${stage} marks.`, "err");
+      return;
+    }
     setScoreModalTeam({ team, stage });
-    const existing = stage === 1 ? team.scores.s1 : stage === 2 ? team.scores.s2 : stage === 3 ? team.scores.s3 : team.scores.s4;
+    const existing = stageScore(team, stage);
     setScoreInput(existing !== null ? String(existing) : "");
     setScoreNote("");
-    if (stage === 1) {
-      // 25-mark Cyber Styling scoring prefill
-      setCyberRubric({ creativity: 10, responsiveness: 5, themeMatch: 10 });
-    }
+    setRubric({});
+  };
+
+  const updateRubric = (key: string, value: string) => {
+    if (!scoreModalTeam) return;
+    const next = { ...rubric, [key]: value };
+    setRubric(next);
+    const filled = RUBRICS[scoreModalTeam.stage].filter((c) => next[c.key] !== undefined && next[c.key] !== "");
+    if (filled.length) setScoreInput(String(filled.reduce((sum, c) => sum + (parseFloat(next[c.key]) || 0), 0)));
   };
 
   const handleSaveScore = async () => {
     if (!scoreModalTeam) return;
+    const { team, stage } = scoreModalTeam;
+    for (const c of RUBRICS[stage]) {
+      const v = rubric[c.key];
+      if (v !== undefined && v !== "" && (isNaN(parseFloat(v)) || parseFloat(v) < 0 || parseFloat(v) > c.max)) {
+        notify(`${c.label} must be between 0 and ${c.max}.`, "err");
+        return;
+      }
+    }
     const pts = parseFloat(scoreInput);
-    if (isNaN(pts) || pts < 0) {
-      notify("Please enter a valid non-negative score.", "err");
+    if (isNaN(pts) || pts < 0 || pts > STAGE_MAX) {
+      notify(`Enter marks between 0 and ${STAGE_MAX}.`, "err");
       return;
     }
-    const maxPoints = scoreModalTeam.stage === 1 ? 50 : scoreModalTeam.stage === 2 ? 50 : 100;
-    if (pts > maxPoints) {
-      notify(`Score cannot exceed maximum of ${maxPoints} for stage ${scoreModalTeam.stage}.`, "err");
-      return;
-    }
+    const criteria = Object.fromEntries(
+      RUBRICS[stage].filter((c) => rubric[c.key] !== undefined && rubric[c.key] !== "").map((c) => [c.key, parseFloat(rubric[c.key])])
+    );
     try {
       await adminRecordScoreEntry(
-        scoreModalTeam.team.id,
-        scoreModalTeam.stage,
+        team.id,
+        stage,
         pts,
-        scoreNote || `Level ${scoreModalTeam.stage} score entry`,
-        scoreModalTeam.stage === 1 ? cyberRubric : undefined
+        scoreNote || `Level ${stage} marks`,
+        Object.keys(criteria).length ? criteria : undefined
       );
-      notify(`Score of ${pts} saved for ${scoreModalTeam.team.name} in Stage ${scoreModalTeam.stage}!`);
+      notify(`${pts}/${STAGE_MAX} saved for ${team.name} in Level ${stage}.`);
       setScoreModalTeam(null);
       loadData();
     } catch (err: unknown) {
@@ -482,15 +504,15 @@ export default function AdminTeamsClient() {
   const renderStatusBadge = (team: MasterTeamRecord) => {
     if (team.shortlist_l4.qualified) {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/15 border border-purple-500/30 text-purple-300">
-          <Award className="w-3 h-3 text-purple-400" /> FINALIST (L4)
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-champagne-500/15 border border-champagne-500/30 text-champagne-300">
+          <Award className="w-3 h-3 text-champagne-400" /> FINALIST (L4)
         </span>
       );
     }
     if (team.shortlist_l3.decision === "shortlisted") {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
-          <CheckCircle2 className="w-3 h-3 text-cyan-400" /> SHORTLISTED (L3)
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-wine-500/15 border border-wine-500/30 text-wine-300">
+          <CheckCircle2 className="w-3 h-3 text-wine-400" /> SHORTLISTED (L3)
         </span>
       );
     }
@@ -545,28 +567,28 @@ export default function AdminTeamsClient() {
             <span className="p-2 rounded-xl bg-gradient-to-br from-[#800020] to-[#191818] border border-white/10 text-white">
               <Users className="w-5 h-5" />
             </span>
-            <span>Master Team Directory & Shortlisting Hub</span>
+            <span>Teams, Marks & Shortlisting</span>
           </h1>
           <p className="text-xs text-white/50 mt-1 font-mono">
-            Full event progression control, persistent team records, Level 3 shortlisting & Level 4 finalist management.
+            Live list of every registered team. Enter marks for all four levels here, shortlist after Level 2, and pick Level 4 teams after Level 3.
           </p>
         </div>
 
         {/* Global Summary Stats */}
         <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
-          <div className="px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/10">
+          <div className="px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/10 admin-panel">
             <span className="text-white/40 block text-[9px] uppercase">Registered</span>
             <span className="text-white font-bold text-sm">{data?.stats.total ?? 0}</span>
           </div>
-          <div className="px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/10">
-            <span className="text-cyan-400/60 block text-[9px] uppercase">L3 Shortlisted</span>
-            <span className="text-cyan-300 font-bold text-sm">{data?.stats.level3_shortlisted ?? 0}</span>
+          <div className="px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/10 admin-panel">
+            <span className="text-wine-400/60 block text-[9px] uppercase">L3 Shortlisted</span>
+            <span className="text-wine-300 font-bold text-sm">{data?.stats.level3_shortlisted ?? 0}</span>
           </div>
-          <div className="px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/10">
-            <span className="text-purple-400/60 block text-[9px] uppercase">L4 Finalists</span>
-            <span className="text-purple-300 font-bold text-sm">{data?.stats.level4_finalists ?? 0}</span>
+          <div className="px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/10 admin-panel">
+            <span className="text-champagne-400/60 block text-[9px] uppercase">L4 Finalists</span>
+            <span className="text-champagne-300 font-bold text-sm">{data?.stats.level4_finalists ?? 0}</span>
           </div>
-          <div className="px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/10">
+          <div className="px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/10 admin-panel">
             <span className="text-red-400/60 block text-[9px] uppercase">Eliminated</span>
             <span className="text-red-400 font-bold text-sm">{data?.stats.eliminated ?? 0}</span>
           </div>
@@ -600,6 +622,9 @@ export default function AdminTeamsClient() {
         >
           <Laptop className="w-3.5 h-3.5" />
           <span>Level 1: Cyber Styling</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === "l1" ? "bg-white/20 text-white" : "bg-white/10 text-white/60"}`}>
+            {data?.stats.total ?? 0}
+          </span>
         </button>
 
         <button
@@ -613,7 +638,7 @@ export default function AdminTeamsClient() {
           <Bug className="w-3.5 h-3.5" />
           <span>Level 2: BugX Hacker</span>
           <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === "l2" ? "bg-white/20 text-white" : "bg-emerald-500/20 text-emerald-300"}`}>
-            Target: {l2TargetQuota}
+            {data?.stats.total ?? 0}
           </span>
         </button>
 
@@ -621,14 +646,14 @@ export default function AdminTeamsClient() {
           onClick={() => switchTab("l3")}
           className={`px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-2 ${
             activeTab === "l3"
-              ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/20"
-              : "bg-white/[0.03] border border-white/10 text-cyan-300 hover:text-white hover:bg-cyan-500/10"
+              ? "bg-wine-600 text-white shadow-lg shadow-wine-600/30"
+              : "bg-white/[0.03] border border-white/10 text-wine-300 hover:text-white hover:bg-wine-500/10"
           }`}
         >
           <Video className="w-3.5 h-3.5" />
-          <span>Level 3 Shortlist</span>
-          <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === "l3" ? "bg-black/20 text-black" : "bg-cyan-500/20 text-cyan-300"}`}>
-            Target: {l3TargetQuota}
+          <span>Level 3: Prompt Rumble</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === "l3" ? "bg-white/20 text-white" : "bg-wine-500/20 text-wine-300"}`}>
+            {data?.stats.level3_shortlisted ?? 0}
           </span>
         </button>
 
@@ -636,13 +661,13 @@ export default function AdminTeamsClient() {
           onClick={() => switchTab("l4")}
           className={`px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-2 ${
             activeTab === "l4"
-              ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20"
-              : "bg-white/[0.03] border border-white/10 text-purple-300 hover:text-white hover:bg-purple-500/10"
+              ? "bg-champagne-300 text-[#1a1a1a] shadow-lg shadow-champagne-500/20"
+              : "bg-white/[0.03] border border-white/10 text-champagne-300 hover:text-white hover:bg-champagne-500/10"
           }`}
         >
           <Award className="w-3.5 h-3.5" />
-          <span>Level 4 Finalists</span>
-          <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === "l4" ? "bg-white/20 text-white" : "bg-purple-500/20 text-purple-300"}`}>
+          <span>Level 4: Prompt Charades</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === "l4" ? "bg-black/15 text-[#1a1a1a]" : "bg-champagne-500/20 text-champagne-300"}`}>
             {data?.stats.level4_finalists ?? 0}
           </span>
         </button>
@@ -664,6 +689,18 @@ export default function AdminTeamsClient() {
       </div>
 
       {/* Level Specific Controls Banner */}
+      {activeTab === "l1" && (
+        <div className="p-5 rounded-2xl bg-[#800020]/10 border border-red-500/25">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-pulse" />
+            <h2 className="text-base font-bold text-white uppercase tracking-wider">Level 1: Cyber Styling — All Registered Teams</h2>
+          </div>
+          <p className="text-xs text-white/60 mt-1">
+            No selection after Level 1. Every registered team appears here live and plays Level 2. Click a team&apos;s L1 mark (or Marks) to score it out of {STAGE_MAX}.
+          </p>
+        </div>
+      )}
+
       {activeTab === "l2" && (
         <div className="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -671,183 +708,139 @@ export default function AdminTeamsClient() {
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 <h2 className="text-base font-bold text-white uppercase tracking-wider">
-                  Level 2 to Level 3 — Organizer Shortlist Selection
+                  Level 2 Shortlist — Cutoff for Level 3
                 </h2>
               </div>
               <p className="text-xs text-white/60 mt-1">
-                Tick teams with top scores in Level 1 & Level 2 to advance to Level 3 Prompt Rumble. Target quota is configurable.
+                Set a cutoff on Level 1 + Level 2 marks (out of {STAGE_MAX * 2}), tick the teams that pass, then confirm. Only ticked teams can open Level 3.
               </p>
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
               <label className="flex items-center gap-2 text-xs font-mono text-white/70">
-                <span>Target Shortlist:</span>
+                <span>Cutoff (L1+L2):</span>
                 <input
                   type="number"
-                  min={1}
-                  max={50}
-                  value={l2TargetQuota}
-                  onChange={(e) => setL2TargetQuota(parseInt(e.target.value) || 10)}
+                  min={0}
+                  max={STAGE_MAX * 2}
+                  value={l2Cutoff ?? ""}
+                  onChange={(e) => setL2Cutoff(e.target.value === "" ? null : Math.max(0, Number(e.target.value)))}
                   className="w-16 px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/20 text-center font-bold text-emerald-300"
                 />
+                <span className="text-white/40">/ {STAGE_MAX * 2}</span>
               </label>
 
               <button
-                onClick={() => selectTopNForL3(l2TargetQuota)}
-                className="px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-mono font-bold uppercase transition-colors"
+                onClick={selectAboveL2Cutoff}
+                disabled={l2Cutoff === null}
+                className="px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-mono font-bold uppercase transition-colors disabled:opacity-40"
               >
-                Auto-Select Top {l2TargetQuota}
+                Tick teams ≥ {l2Cutoff ?? "—"}
               </button>
 
               <button
-                onClick={() => {
-                  if (selectedForL3.size === 0) {
-                    notify("Please tick at least one team for Level 3.", "err");
-                    return;
-                  }
-                  setShowL2ConfirmModal(true);
-                }}
+                onClick={() => setShowL2ConfirmModal(true)}
                 disabled={selectedForL3.size === 0}
                 className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-mono font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-40"
               >
-                Review & Confirm Shortlist ({selectedForL3.size})
+                Confirm Level 3 List ({selectedForL3.size})
               </button>
             </div>
           </div>
 
-          {/* Shortlist Selection Summary Box */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
             <div className="p-3 rounded-xl bg-black/30 border border-white/5 font-mono text-xs">
-              <span className="text-white/40 block text-[10px]">Participating in L2</span>
-              <span className="text-white font-bold text-base">
-                {filteredTeams.length}
-              </span>
+              <span className="text-white/40 block text-[10px]">Teams in Level 2</span>
+              <span className="text-white font-bold text-base">{data?.teams.length ?? 0}</span>
             </div>
             <div className="p-3 rounded-xl bg-black/30 border border-white/5 font-mono text-xs">
-              <span className="text-emerald-400/60 block text-[10px]">Ticked to Advance</span>
+              <span className="text-white/40 block text-[10px]">Fully marked (L1 + L2)</span>
+              <span className="text-white font-bold text-base">{data?.teams.filter((t) => combinedL12(t) !== null).length ?? 0}</span>
+            </div>
+            <div className="p-3 rounded-xl bg-black/30 border border-white/5 font-mono text-xs">
+              <span className="text-emerald-400/60 block text-[10px]">Ticked for Level 3</span>
               <span className="text-emerald-300 font-bold text-base">{selectedForL3.size}</span>
             </div>
             <div className="p-3 rounded-xl bg-black/30 border border-white/5 font-mono text-xs">
-              <span className="text-amber-400/60 block text-[10px]">Unselected (Cut)</span>
-              <span className="text-amber-300 font-bold text-base">
-                {Math.max(0, filteredTeams.length - selectedForL3.size)}
-              </span>
-            </div>
-            <div className="p-3 rounded-xl bg-black/30 border border-white/5 font-mono text-xs flex items-center justify-between">
-              <div>
-                <span className="text-white/40 block text-[10px]">Quota Match</span>
-                <span
-                  className={`font-bold text-xs uppercase ${
-                    selectedForL3.size === l2TargetQuota ? "text-emerald-300" : "text-amber-300"
-                  }`}
-                >
-                  {selectedForL3.size === l2TargetQuota ? `Exact Target (${l2TargetQuota})` : `${selectedForL3.size} / ${l2TargetQuota}`}
-                </span>
-              </div>
-              {selectedForL3.size !== l2TargetQuota && (
-                <span className="text-[10px] text-amber-400 font-sans inline-flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3 text-amber-400" />
-                  <span>Discrepancy</span>
-                </span>
-              )}
+              <span className="text-amber-400/60 block text-[10px]">Cut after Level 2</span>
+              <span className="text-amber-300 font-bold text-base">{Math.max(0, (data?.teams.length ?? 0) - selectedForL3.size)}</span>
             </div>
           </div>
         </div>
       )}
 
       {activeTab === "l3" && (
-        <div className="p-5 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 space-y-4">
+        <div className="p-5 rounded-2xl bg-wine-950/20 border border-wine-500/30 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="w-2.5 h-2.5 rounded-full bg-wine-400 animate-pulse" />
                 <h2 className="text-base font-bold text-white uppercase tracking-wider">
-                  Level 3 to Level 4 — Organizer Shortlist Selection
+                  Level 3 Selection — Who Plays Level 4
                 </h2>
               </div>
               <p className="text-xs text-white/60 mt-1">
-                Select eligible teams from Level 3 to advance to the Level 4 Prompt Charades finale. Target quota is configurable.
+                Only teams shortlisted after Level 2 are listed. Set a cutoff on Level 3 marks, tick the teams that pass, then confirm. Only ticked teams can open Level 4.
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <label className="flex items-center gap-2 text-xs font-mono text-white/70">
-                <span>Target Finalists:</span>
+                <span>Cutoff (L3):</span>
                 <input
                   type="number"
-                  min={1}
-                  max={38}
-                  value={l3TargetQuota}
-                  onChange={(e) => setL3TargetQuota(parseInt(e.target.value) || 10)}
-                  className="w-16 px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/20 text-center font-bold text-cyan-300"
+                  min={0}
+                  max={STAGE_MAX}
+                  value={l3Cutoff}
+                  onChange={(e) => setL3Cutoff(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-16 px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/20 text-center font-bold text-wine-300"
                 />
+                <span className="text-white/40">/ {STAGE_MAX}</span>
               </label>
 
               <button
-                onClick={() => selectTopNForL4(l3TargetQuota)}
-                className="px-3 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-mono font-bold uppercase transition-colors"
+                onClick={selectAboveL3Cutoff}
+                className="px-3 py-1.5 rounded-lg border border-wine-500/40 bg-wine-500/10 hover:bg-wine-500/20 text-wine-300 text-xs font-mono font-bold uppercase transition-colors"
               >
-                Auto-Select Top {l3TargetQuota}
+                Tick teams ≥ {l3Cutoff}
               </button>
 
               <button
-                onClick={handleOpenL3ConfirmModal}
+                onClick={() => setShowL3ConfirmModal(true)}
                 disabled={selectedForL4.size === 0}
-                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-mono font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-40"
+                className="px-4 py-2 rounded-xl bg-wine-600 hover:bg-wine-500 text-white font-mono font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-wine-500/20 disabled:opacity-40"
               >
-                Review & Confirm Shortlist ({selectedForL4.size})
+                Confirm Level 4 List ({selectedForL4.size})
               </button>
             </div>
           </div>
 
-          {/* Shortlist Selection Summary Box */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
             <div className="p-3 rounded-xl bg-black/30 border border-white/5 font-mono text-xs">
-              <span className="text-white/40 block text-[10px]">Eligible in L3</span>
-              <span className="text-white font-bold text-base">
-                {data?.teams.filter((t) => t.shortlist_l3.decision === "shortlisted").length ?? 0}
-              </span>
+              <span className="text-white/40 block text-[10px]">Teams in Level 3</span>
+              <span className="text-white font-bold text-base">{l3Pool.length}</span>
             </div>
             <div className="p-3 rounded-xl bg-black/30 border border-white/5 font-mono text-xs">
-              <span className="text-cyan-400/60 block text-[10px]">Selected to Advance</span>
-              <span className="text-cyan-300 font-bold text-base">{selectedForL4.size}</span>
+              <span className="text-white/40 block text-[10px]">Marked in Level 3</span>
+              <span className="text-white font-bold text-base">{l3Pool.filter((t) => t.scores.s3 !== null).length}</span>
             </div>
             <div className="p-3 rounded-xl bg-black/30 border border-white/5 font-mono text-xs">
-              <span className="text-amber-400/60 block text-[10px]">Unselected (Cut)</span>
-              <span className="text-amber-300 font-bold text-base">
-                {Math.max(
-                  0,
-                  (data?.teams.filter((t) => t.shortlist_l3.decision === "shortlisted").length ?? 0) - selectedForL4.size
-                )}
-              </span>
+              <span className="text-wine-400/60 block text-[10px]">Ticked for Level 4</span>
+              <span className="text-wine-300 font-bold text-base">{selectedForL4.size}</span>
             </div>
-            <div className="p-3 rounded-xl bg-black/30 border border-white/5 font-mono text-xs flex items-center justify-between">
-              <div>
-                <span className="text-white/40 block text-[10px]">Quota Match</span>
-                <span
-                  className={`font-bold text-xs uppercase ${
-                    selectedForL4.size === l3TargetQuota ? "text-emerald-300" : "text-amber-300"
-                  }`}
-                >
-                  {selectedForL4.size === l3TargetQuota ? "Exact Target (10)" : `${selectedForL4.size} / ${l3TargetQuota}`}
-                </span>
-              </div>
-              {selectedForL4.size !== l3TargetQuota && (
-                <span className="text-[10px] text-amber-400 font-sans inline-flex items-center gap-1" title="Warning will require confirmation">
-                  <AlertTriangle className="w-3 h-3 text-amber-400" />
-                  <span>Discrepancy</span>
-                </span>
-              )}
+            <div className="p-3 rounded-xl bg-black/30 border border-white/5 font-mono text-xs">
+              <span className="text-amber-400/60 block text-[10px]">Cut after Level 3</span>
+              <span className="text-amber-300 font-bold text-base">{Math.max(0, l3Pool.length - selectedForL4.size)}</span>
             </div>
           </div>
         </div>
       )}
 
       {activeTab === "l4" && (
-        <div className="p-5 rounded-2xl bg-purple-950/20 border border-purple-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-5 rounded-2xl bg-champagne-950/20 border border-champagne-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-champagne-400 animate-pulse" />
               <h2 className="text-base font-bold text-white uppercase tracking-wider">
                 Level 4: Prompt Charades Finalists
               </h2>
@@ -860,7 +853,7 @@ export default function AdminTeamsClient() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowL4ConfirmModal(true)}
-              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-mono font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-purple-600/20"
+              className="px-4 py-2 rounded-xl bg-champagne-300 hover:bg-champagne-200 text-[#1a1a1a] font-mono font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-champagne-600/20"
             >
               Publish & Lock Finalist List
             </button>
@@ -883,7 +876,7 @@ export default function AdminTeamsClient() {
       )}
 
       {/* Search, SubFilters, and Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/10">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/10 admin-panel">
         <div className="flex items-center gap-3 flex-1 min-w-[260px]">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -906,13 +899,13 @@ export default function AdminTeamsClient() {
         </div>
 
         {/* Sub-category Filter Buttons */}
-        <div className="flex items-center gap-1 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-1 text-xs font-mono">
           <span className="text-white/30 text-[10px] uppercase mr-2 flex items-center gap-1">
             <Filter className="w-3 h-3" /> Filter:
           </span>
           <button
             onClick={() => setSubFilter("all")}
-            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors ${
               subFilter === "all" ? "bg-white/15 text-white font-bold" : "text-white/50 hover:text-white"
             }`}
           >
@@ -920,15 +913,15 @@ export default function AdminTeamsClient() {
           </button>
           <button
             onClick={() => setSubFilter("eligible")}
-            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
-              subFilter === "eligible" ? "bg-cyan-500/20 text-cyan-300 font-bold" : "text-white/50 hover:text-white"
+            className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors ${
+              subFilter === "eligible" ? "bg-wine-500/20 text-wine-300 font-bold" : "text-white/50 hover:text-white"
             }`}
           >
             Eligible
           </button>
           <button
             onClick={() => setSubFilter("shortlisted")}
-            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors ${
               subFilter === "shortlisted" ? "bg-emerald-500/20 text-emerald-300 font-bold" : "text-white/50 hover:text-white"
             }`}
           >
@@ -936,7 +929,7 @@ export default function AdminTeamsClient() {
           </button>
           <button
             onClick={() => setSubFilter("not_shortlisted")}
-            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors ${
               subFilter === "not_shortlisted" ? "bg-red-500/20 text-red-300 font-bold" : "text-white/50 hover:text-white"
             }`}
           >
@@ -959,43 +952,22 @@ export default function AdminTeamsClient() {
           <table className="w-full text-left font-mono text-xs">
             <thead>
               <tr className="border-b border-white/10 bg-black/40 text-[10px] uppercase text-white/40 tracking-wider">
-                {(activeTab === "l2" || activeTab === "l3" || activeTab === "all") && (
-                  <th className="py-3 px-3 text-center w-12" title="Tick box column">
+                {(activeTab === "l2" || activeTab === "l3") && (
+                  <th className="py-3 px-3 text-center w-12" title="Tick to select">
                     <input
                       type="checkbox"
-                      checked={
-                        filteredTeams.length > 0 &&
-                        filteredTeams.every((t) =>
-                          activeTab === "l2"
-                            ? selectedForL3.has(t.id)
-                            : activeTab === "l3"
-                            ? selectedForL4.has(t.id)
-                            : (selectedForL3.has(t.id) || selectedForL4.has(t.id))
-                        )
-                      }
+                      checked={filteredTeams.length > 0 && filteredTeams.every((t) => (activeTab === "l2" ? selectedForL3 : selectedForL4).has(t.id))}
                       onChange={(e) => {
-                        if (e.target.checked) {
-                          if (activeTab === "l2") {
-                            setSelectedForL3(new Set(filteredTeams.map((t) => t.id)));
-                          } else if (activeTab === "l3") {
-                            setSelectedForL4(new Set(filteredTeams.map((t) => t.id)));
-                          } else {
-                            const l2Plus = filteredTeams.filter((t) => t.current_level >= 2);
-                            setSelectedForL3(new Set(l2Plus.map((t) => t.id)));
-                          }
-                        } else {
-                          if (activeTab === "l2") {
-                            setSelectedForL3(new Set());
-                          } else if (activeTab === "l3") {
-                            setSelectedForL4(new Set());
-                          } else {
-                            setSelectedForL3(new Set());
-                            setSelectedForL4(new Set());
-                          }
-                        }
+                        const ids = filteredTeams.map((t) => t.id);
+                        const setter = activeTab === "l2" ? setSelectedForL3 : setSelectedForL4;
+                        setter((prev) => {
+                          const next = new Set(prev);
+                          ids.forEach((id) => (e.target.checked ? next.add(id) : next.delete(id)));
+                          return next;
+                        });
                       }}
-                      className="accent-emerald-400 h-4 w-4 rounded cursor-pointer"
-                      title="Tick to select all visible teams"
+                      className={`${activeTab === "l2" ? "accent-emerald-400" : "accent-wine-400"} h-4 w-4 rounded cursor-pointer`}
+                      title="Tick all visible teams"
                     />
                   </th>
                 )}
@@ -1018,16 +990,17 @@ export default function AdminTeamsClient() {
                   </div>
                 </th>
                 <th className="py-3 px-3 text-center">Status</th>
-                <th className="py-3 px-2 text-center">S1 (25/50)</th>
-                <th className="py-3 px-2 text-center">S2 (50)</th>
-                <th className="py-3 px-2 text-center">S3</th>
-                <th className="py-3 px-2 text-center">S4</th>
+                {[1, 2, 3, 4].map((st) => (
+                  <th key={st} className={`py-3 px-2 text-center ${activeTab === `l${st}` ? "text-white" : ""}`}>
+                    L{st} /{STAGE_MAX}
+                  </th>
+                ))}
                 <th
                   onClick={() => toggleSort("total")}
                   className="py-3 px-3 cursor-pointer hover:text-white transition-colors text-center"
                 >
                   <div className="flex items-center justify-center gap-1.5">
-                    <span>Total Score</span>
+                    <span>Total /{STAGE_MAX * 4}</span>
                     <ArrowUpDown className="w-3 h-3" />
                   </div>
                 </th>
@@ -1038,12 +1011,7 @@ export default function AdminTeamsClient() {
               {filteredTeams.map((team) => {
                 const isSelectedInL2 = selectedForL3.has(team.id);
                 const isSelectedInL3 = selectedForL4.has(team.id);
-                const isChecked =
-                  activeTab === "l2"
-                    ? isSelectedInL2
-                    : activeTab === "l3"
-                    ? isSelectedInL3
-                    : (isSelectedInL2 || isSelectedInL3);
+                const isChecked = activeTab === "l2" ? isSelectedInL2 : isSelectedInL3;
 
                 return (
                   <tr
@@ -1052,29 +1020,19 @@ export default function AdminTeamsClient() {
                       isSelectedInL2 && activeTab === "l2"
                         ? "bg-emerald-950/20"
                         : isSelectedInL3 && activeTab === "l3"
-                        ? "bg-cyan-950/20"
+                        ? "bg-wine-950/20"
                         : ""
                     }`}
                   >
-                    {(activeTab === "l2" || activeTab === "l3" || activeTab === "all") && (
+                    {(activeTab === "l2" || activeTab === "l3") && (
                       <td className="py-3 px-3 text-center">
-                        {(team.current_level >= 2 || activeTab === "l2" || activeTab === "l3") ? (
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {
-                              if (activeTab === "l2" || team.current_level === 2) {
-                                toggleSelectTeamForL3(team.id);
-                              } else {
-                                toggleSelectTeamForL4(team.id);
-                              }
-                            }}
-                            className={`${activeTab === "l2" || team.current_level === 2 ? "accent-emerald-400" : "accent-cyan-400"} h-4 w-4 rounded cursor-pointer`}
-                            title={`Tick ${team.name} for progression`}
-                          />
-                        ) : (
-                          <span className="text-white/10 select-none">—</span>
-                        )}
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => (activeTab === "l2" ? toggleSelectTeamForL3(team.id) : toggleSelectTeamForL4(team.id))}
+                          className={`${activeTab === "l2" ? "accent-emerald-400" : "accent-wine-400"} h-4 w-4 rounded cursor-pointer`}
+                          title={`Tick ${team.name}`}
+                        />
                       </td>
                     )}
 
@@ -1109,49 +1067,30 @@ export default function AdminTeamsClient() {
                       {renderStatusBadge(team)}
                     </td>
 
-                    {/* Stage 1 Score */}
-                    <td className="py-3 px-2 text-center font-bold">
-                      <button
-                        onClick={() => handleOpenScoreModal(team, 1)}
-                        className="hover:underline text-white/90 hover:text-white"
-                        title="Click to record/edit Level 1 Cyber Styling score"
-                      >
-                        {team.scores.s1 !== null ? team.scores.s1 : <span className="text-white/20">—</span>}
-                      </button>
-                    </td>
-
-                    {/* Stage 2 Score */}
-                    <td className="py-3 px-2 text-center font-bold">
-                      <button
-                        onClick={() => handleOpenScoreModal(team, 2)}
-                        className="hover:underline text-white/90 hover:text-white"
-                        title="Click to record/edit Level 2 BugX Hacker score"
-                      >
-                        {team.scores.s2 !== null ? team.scores.s2 : <span className="text-white/20">—</span>}
-                      </button>
-                    </td>
-
-                    {/* Stage 3 Score */}
-                    <td className="py-3 px-2 text-center font-bold">
-                      <button
-                        onClick={() => handleOpenScoreModal(team, 3)}
-                        className="hover:underline text-white/90 hover:text-white"
-                        title="Click to record/edit Level 3 Prompt Rumble score"
-                      >
-                        {team.scores.s3 !== null ? team.scores.s3 : <span className="text-white/20">—</span>}
-                      </button>
-                    </td>
-
-                    {/* Stage 4 Score */}
-                    <td className="py-3 px-2 text-center font-bold">
-                      <button
-                        onClick={() => handleOpenScoreModal(team, 4)}
-                        className="hover:underline text-white/90 hover:text-white"
-                        title="Click to record/edit Level 4 Prompt Charades score"
-                      >
-                        {team.scores.s4 !== null ? team.scores.s4 : <span className="text-white/20">—</span>}
-                      </button>
-                    </td>
+                    {/* Stage Marks (click to enter) */}
+                    {[1, 2, 3, 4].map((st) => {
+                      const val = stageScore(team, st);
+                      const allowed = canScore(team, st);
+                      return (
+                        <td key={st} className="py-3 px-2 text-center font-bold">
+                          {allowed ? (
+                            <button
+                              onClick={() => handleOpenScoreModal(team, st)}
+                              className={`min-w-10 px-2 py-1 rounded-lg border transition-colors ${
+                                val !== null
+                                  ? "border-white/10 text-white hover:border-white/40"
+                                  : "border-dashed border-white/20 text-white/40 hover:text-white hover:border-white/50"
+                              } ${activeTab === `l${st}` ? "bg-white/[0.06]" : ""}`}
+                              title={`Enter Level ${st} ${STAGE_NAMES[st]} marks`}
+                            >
+                              {val !== null ? val : "+"}
+                            </button>
+                          ) : (
+                            <span className="text-white/15" title={`Not in Level ${st}`}>—</span>
+                          )}
+                        </td>
+                      );
+                    })}
 
                     {/* Total Score */}
                     <td className="py-3 px-3 text-center">
@@ -1171,63 +1110,19 @@ export default function AdminTeamsClient() {
                           Details
                         </button>
 
-                        {/* Level 2 Onwards Quick Progression Tick Buttons */}
-                        {/* Level 2: Tick button to shortlist/advance to Level 3 */}
-                        {(team.current_level === 2 || (activeTab === "l2" && team.shortlist_l3.decision !== "shortlisted")) && (
-                          team.shortlist_l3.decision === "shortlisted" ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">
-                              <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
-                              <span>L3 Shortlisted</span>
-                            </span>
-                          ) : (
+                        {(() => {
+                          const tabStage = activeTab.startsWith("l") ? Number(activeTab.slice(1)) : null;
+                          const st = tabStage ?? [1, 2, 3, 4].find((n) => canScore(team, n) && stageScore(team, n) === null) ?? 1;
+                          return canScore(team, st) ? (
                             <button
-                              onClick={() => handleQuickAdvanceToL3(team)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold hover:bg-emerald-500/30 transition-all shadow-sm shadow-emerald-500/10 cursor-pointer"
-                              title={`Tick / Shortlist ${team.name} for Level 3`}
+                              onClick={() => handleOpenScoreModal(team, st)}
+                              className="px-2.5 py-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-[11px] font-bold transition-colors"
+                              title={`Enter Level ${st} marks`}
                             >
-                              <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
-                              <span>Advance L3</span>
+                              Marks L{st}
                             </button>
-                          )
-                        )}
-
-                        {/* Level 3: Tick button to advance to Level 4 Finalist */}
-                        {(team.current_level === 3 || activeTab === "l3") && (
-                          team.shortlist_l4.qualified ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[11px] font-bold">
-                              <Check className="w-3.5 h-3.5 text-purple-400 stroke-[2.5]" />
-                              <span>L4 Finalist</span>
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => handleQuickAdvanceToL4(team)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[11px] font-bold hover:bg-cyan-500/30 transition-all shadow-sm shadow-cyan-500/10 cursor-pointer"
-                              title={`Tick / Advance ${team.name} to Level 4 Finalists`}
-                            >
-                              <Check className="w-3.5 h-3.5 text-cyan-400 stroke-[2.5]" />
-                              <span>Advance L4</span>
-                            </button>
-                          )
-                        )}
-
-                        {/* Level 4: Finalist Badge */}
-                        {(team.current_level === 4 || activeTab === "l4") && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[11px] font-bold">
-                            <Award className="w-3.5 h-3.5 text-purple-400" />
-                            <span>Finalist</span>
-                          </span>
-                        )}
-
-                        {/* Eliminated or cut teams in L2+: allow re-advancing with Tick Button */}
-                        {(team.overall_status === "eliminated" || team.overall_status === "not_shortlisted" || team.shortlist_l3.decision === "rejected") && team.current_level >= 2 && (
-                          <button
-                            onClick={() => handleQuickAdvanceToL3(team)}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-[10px] font-bold cursor-pointer"
-                            title={`Tick to re-advance ${team.name} to Level 3`}
-                          >
-                            <Check className="w-3 h-3 text-emerald-400" /> Re-Advance L3
-                          </button>
-                        )}
+                          ) : null;
+                        })()}
 
                         {activeTab === "eliminated" && (
                           <button
@@ -1253,162 +1148,98 @@ export default function AdminTeamsClient() {
       {/* Confirmation Modal: Level 2 Shortlist -> Level 3 */}
       {showL2ConfirmModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#121111] border border-emerald-500/30 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl font-mono text-xs">
+          <div className="bg-[#1c1a1a] border border-emerald-500/30 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl font-mono text-xs admin-modal">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <span>Confirm Level 2 Shortlist</span>
+                <span>Confirm Level 3 List</span>
               </h3>
               <button onClick={() => setShowL2ConfirmModal(false)} className="text-white/40 hover:text-white p-1 rounded-lg" aria-label="Close">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3">
-              <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2">
-                <div className="flex justify-between text-white/70">
-                  <span>Eligible Teams in Level 2:</span>
-                  <span className="text-white font-bold">{filteredTeams.length}</span>
-                </div>
-                <div className="flex justify-between text-emerald-300">
-                  <span>Teams Ticked to Advance:</span>
-                  <span className="font-bold text-emerald-200">{selectedForL3.size}</span>
-                </div>
-                <div className="flex justify-between text-amber-300">
-                  <span>Teams Not Shortlisted (Cut):</span>
-                  <span className="font-bold">
-                    {Math.max(0, filteredTeams.length - selectedForL3.size)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-white/70">
-                  <span>Configured Target Quota:</span>
-                  <span className="font-bold text-white">{l2TargetQuota}</span>
-                </div>
+            <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2">
+              <div className="flex justify-between text-white/70">
+                <span>Cutoff (L1 + L2):</span>
+                <span className="text-white font-bold">{l2Cutoff ?? "—"} / {STAGE_MAX * 2}</span>
               </div>
-
-              {/* Warning if selected count differs from target quota */}
-              {selectedForL3.size !== l2TargetQuota && (
-                <div className="p-4 rounded-xl border border-amber-500/40 bg-amber-950/30 space-y-3">
-                  <div className="flex items-start gap-2.5 text-amber-300 font-bold">
-                    <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-400 mt-0.5" />
-                    <div>
-                      <p>Target Quota Warning</p>
-                      <p className="text-[11px] font-normal text-amber-200/80 mt-1">
-                        You have selected <strong>{selectedForL3.size}</strong> teams, but the event target is <strong>{l2TargetQuota}</strong>. Please explicitly confirm you wish to proceed with this count.
-                      </p>
-                    </div>
-                  </div>
-                  <label className="flex items-center gap-2 text-xs text-white/90 pt-1 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={l2WarningAcknowledged}
-                      onChange={(e) => setL2WarningAcknowledged(e.target.checked)}
-                      className="accent-amber-400 h-4 w-4"
-                    />
-                    <span>I confirm proceeding with {selectedForL3.size} shortlisted teams.</span>
-                  </label>
-                </div>
-              )}
+              <div className="flex justify-between text-emerald-300">
+                <span>Shortlisted → can play Level 3:</span>
+                <span className="font-bold text-emerald-200">{selectedForL3.size}</span>
+              </div>
+              <div className="flex justify-between text-amber-300">
+                <span>Not shortlisted (cut):</span>
+                <span className="font-bold">{Math.max(0, (data?.teams.length ?? 0) - selectedForL3.size)}</span>
+              </div>
             </div>
 
+            {l2MissingScores.length > 0 && (
+              <div className="p-3 rounded-xl border border-red-500/40 bg-red-950/30 text-red-200 flex gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-400" />
+                <span>Missing L1 or L2 marks: {l2MissingScores.map((t) => t.name).join(", ")}. Enter their marks first.</span>
+              </div>
+            )}
+
+            <p className="text-white/50">Every team you didn&apos;t tick is marked not shortlisted and can&apos;t open Level 3. You can change the list and confirm again later.</p>
+
             <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowL2ConfirmModal(false)}
-                className="px-4 py-2 rounded-xl border border-white/20 text-white/60 hover:text-white"
-              >
+              <button onClick={() => setShowL2ConfirmModal(false)} className="px-4 py-2 rounded-xl border border-white/20 text-white/60 hover:text-white">
                 Cancel
               </button>
               <button
                 onClick={handleSaveL2Shortlist}
-                disabled={isSavingL2Shortlist || (selectedForL3.size !== l2TargetQuota && !l2WarningAcknowledged)}
+                disabled={isSavingL2Shortlist || l2MissingScores.length > 0}
                 className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 disabled:opacity-40"
               >
-                {isSavingL2Shortlist ? "Saving to Database…" : "Confirm & Save Shortlist"}
+                {isSavingL2Shortlist ? "Saving…" : "Confirm & Save"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Confirmation Modal: Level 3 Shortlist -> Level 4 */}
+      {/* Confirmation Modal: Level 3 -> Level 4 */}
       {showL3ConfirmModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#121111] border border-cyan-500/30 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl font-mono text-xs">
+          <div className="bg-[#1c1a1a] border border-wine-500/30 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl font-mono text-xs admin-modal">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-cyan-400" />
-                <span>Confirm Level 3 Shortlist</span>
+                <ShieldCheck className="w-5 h-5 text-wine-400" />
+                <span>Confirm Level 4 List</span>
               </h3>
               <button onClick={() => setShowL3ConfirmModal(false)} className="text-white/40 hover:text-white p-1 rounded-lg" aria-label="Close">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3">
-              <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2">
-                <div className="flex justify-between text-white/70">
-                  <span>Eligible Teams:</span>
-                  <span className="text-white font-bold">
-                    {data?.teams.filter((t) => t.shortlist_l3.decision === "shortlisted").length ?? 0}
-                  </span>
-                </div>
-                <div className="flex justify-between text-cyan-300">
-                  <span>Teams Selected to Advance:</span>
-                  <span className="font-bold text-cyan-200">{selectedForL4.size}</span>
-                </div>
-                <div className="flex justify-between text-amber-300">
-                  <span>Teams Not Shortlisted (Cut):</span>
-                  <span className="font-bold">
-                    {Math.max(
-                      0,
-                      (data?.teams.filter((t) => t.shortlist_l3.decision === "shortlisted").length ?? 0) - selectedForL4.size
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between text-white/70">
-                  <span>Configured Target Quota:</span>
-                  <span className="font-bold text-white">{l3TargetQuota}</span>
-                </div>
+            <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-2">
+              <div className="flex justify-between text-white/70">
+                <span>Teams in Level 3:</span>
+                <span className="text-white font-bold">{l3Pool.length}</span>
               </div>
-
-              {/* Warning if selected count differs from target quota (10) */}
-              {selectedForL4.size !== l3TargetQuota && (
-                <div className="p-4 rounded-xl border border-amber-500/40 bg-amber-950/30 space-y-3">
-                  <div className="flex items-start gap-2.5 text-amber-300 font-bold">
-                    <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-400 mt-0.5" />
-                    <div>
-                      <p>Target Quota Warning</p>
-                      <p className="text-[11px] font-normal text-amber-200/80 mt-1">
-                        You have selected <strong>{selectedForL4.size}</strong> teams, but the event target is <strong>{l3TargetQuota}</strong>. Please explicitly confirm you wish to proceed with this count.
-                      </p>
-                    </div>
-                  </div>
-                  <label className="flex items-center gap-2 text-xs text-white/90 pt-1 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={l3WarningAcknowledged}
-                      onChange={(e) => setL3WarningAcknowledged(e.target.checked)}
-                      className="accent-amber-400 h-4 w-4"
-                    />
-                    <span>I confirm proceeding with {selectedForL4.size} shortlisted teams.</span>
-                  </label>
-                </div>
-              )}
+              <div className="flex justify-between text-wine-300">
+                <span>Qualified → can play Level 4:</span>
+                <span className="font-bold text-wine-200">{selectedForL4.size}</span>
+              </div>
+              <div className="flex justify-between text-amber-300">
+                <span>Cut after Level 3:</span>
+                <span className="font-bold">{Math.max(0, l3Pool.length - selectedForL4.size)}</span>
+              </div>
             </div>
 
+            <p className="text-white/50">Only the ticked teams can open Level 4. Confirming again replaces the previous Level 4 list.</p>
+
             <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowL3ConfirmModal(false)}
-                className="px-4 py-2 rounded-xl border border-white/20 text-white/60 hover:text-white"
-              >
+              <button onClick={() => setShowL3ConfirmModal(false)} className="px-4 py-2 rounded-xl border border-white/20 text-white/60 hover:text-white">
                 Cancel
               </button>
               <button
                 onClick={handleSaveL3Shortlist}
-                disabled={isSavingShortlist || (selectedForL4.size !== l3TargetQuota && !l3WarningAcknowledged)}
-                className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold uppercase tracking-wider transition-all shadow-md shadow-cyan-500/20 disabled:opacity-40"
+                disabled={isSavingShortlist}
+                className="px-5 py-2.5 rounded-xl bg-wine-600 hover:bg-wine-500 text-white font-bold uppercase tracking-wider transition-all shadow-md shadow-wine-500/20 disabled:opacity-40"
               >
-                {isSavingShortlist ? "Saving to Database…" : "Confirm & Save Shortlist"}
+                {isSavingShortlist ? "Saving…" : "Confirm & Save"}
               </button>
             </div>
           </div>
@@ -1418,10 +1249,10 @@ export default function AdminTeamsClient() {
       {/* Confirmation Modal: Level 4 Finalist Publication */}
       {showL4ConfirmModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#121111] border border-purple-500/30 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl font-mono text-xs">
+          <div className="bg-[#1c1a1a] border border-champagne-500/30 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl font-mono text-xs admin-modal">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <Award className="w-5 h-5 text-purple-400" />
+                <Award className="w-5 h-5 text-champagne-400" />
                 <span>Confirm Finalist Publication</span>
               </h3>
               <button onClick={() => setShowL4ConfirmModal(false)} className="text-white/40 hover:text-white p-1 rounded-lg" aria-label="Close">
@@ -1450,7 +1281,7 @@ export default function AdminTeamsClient() {
               </button>
               <button
                 onClick={handleConfirmL4Finalists}
-                className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold uppercase tracking-wider"
+                className="px-5 py-2.5 rounded-xl bg-champagne-300 hover:bg-champagne-200 text-[#1a1a1a] font-bold uppercase tracking-wider"
               >
                 Confirm & Lock Finalists
               </button>
@@ -1462,11 +1293,11 @@ export default function AdminTeamsClient() {
       {/* Score Entry Modal */}
       {scoreModalTeam && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#121111] border border-white/15 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl font-mono text-xs">
+          <div className="bg-[#1c1a1a] border border-white/15 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl font-mono text-xs admin-modal">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div>
                 <h3 className="text-base font-bold text-white uppercase">
-                  Record Score — Level 0{scoreModalTeam.stage}
+                  Marks — Level {scoreModalTeam.stage}: {STAGE_NAMES[scoreModalTeam.stage]}
                 </h3>
                 <p className="text-white/50 text-xs mt-0.5">{scoreModalTeam.team.name} ({scoreModalTeam.team.code})</p>
               </div>
@@ -1475,74 +1306,45 @@ export default function AdminTeamsClient() {
               </button>
             </div>
 
-            {/* Stage 1 Cyber Styling 25-mark Rubric Assistant */}
-            {scoreModalTeam.stage === 1 && (
-              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
-                <span className="text-[10px] uppercase tracking-wider text-[#e9adb5] font-bold block">
-                  Cyber Styling 25-Mark Scoring Rubric
-                </span>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-2 rounded bg-black/40">
-                    <span className="text-[9px] text-white/40 block">Creativity (/10)</span>
+            {/* Judge-guide rubric for this round */}
+            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+              <span className="text-[10px] uppercase tracking-wider text-[#e9adb5] font-bold block">
+                {STAGE_NAMES[scoreModalTeam.stage]} rubric ({STAGE_MAX})
+              </span>
+              {RUBRICS[scoreModalTeam.stage].map((c) => (
+                <label key={c.key} className="flex items-center justify-between gap-3 py-1">
+                  <span className="min-w-0">
+                    <span className="text-white text-[11px] font-bold block">{c.label}</span>
+                    <span className="text-white/40 text-[10px] block">{c.hint}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 shrink-0">
                     <input
                       type="number"
-                      max={10}
                       min={0}
-                      value={cyberRubric.creativity}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setCyberRubric((p) => ({ ...p, creativity: val }));
-                        setScoreInput(String(val + cyberRubric.responsiveness + cyberRubric.themeMatch));
-                      }}
-                      className="w-full text-center bg-transparent font-bold text-white mt-1 border-b border-white/20"
+                      max={c.max}
+                      step={1}
+                      value={rubric[c.key] ?? ""}
+                      onChange={(e) => updateRubric(c.key, e.target.value)}
+                      className="w-14 px-2 py-1 rounded-lg bg-black/40 border border-white/20 text-center font-bold text-white"
                     />
-                  </div>
-                  <div className="p-2 rounded bg-black/40">
-                    <span className="text-[9px] text-white/40 block">Design/Code (/5)</span>
-                    <input
-                      type="number"
-                      max={5}
-                      min={0}
-                      value={cyberRubric.responsiveness}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setCyberRubric((p) => ({ ...p, responsiveness: val }));
-                        setScoreInput(String(cyberRubric.creativity + val + cyberRubric.themeMatch));
-                      }}
-                      className="w-full text-center bg-transparent font-bold text-white mt-1 border-b border-white/20"
-                    />
-                  </div>
-                  <div className="p-2 rounded bg-black/40">
-                    <span className="text-[9px] text-white/40 block">Theme Match (/10)</span>
-                    <input
-                      type="number"
-                      max={10}
-                      min={0}
-                      value={cyberRubric.themeMatch}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setCyberRubric((p) => ({ ...p, themeMatch: val }));
-                        setScoreInput(String(cyberRubric.creativity + cyberRubric.responsiveness + val));
-                      }}
-                      className="w-full text-center bg-transparent font-bold text-white mt-1 border-b border-white/20"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+                    <span className="text-white/40 w-7">/{c.max}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
 
             <div className="space-y-1.5">
               <label className="text-white/60 block text-[10px] uppercase">
-                Score Points (Max {scoreModalTeam.stage <= 2 ? "50" : "100"}):
+                Total marks (max {STAGE_MAX}) — fills from the rubric, or type the final average:
               </label>
               <input
                 type="number"
                 step="any"
                 min={0}
-                max={scoreModalTeam.stage <= 2 ? 50 : 100}
+                max={STAGE_MAX}
                 value={scoreInput}
                 onChange={(e) => setScoreInput(e.target.value)}
-                placeholder="Enter points…"
+                placeholder="Enter marks…"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/20 text-white font-bold text-sm focus:border-white"
               />
             </div>
@@ -1566,7 +1368,7 @@ export default function AdminTeamsClient() {
                 onClick={handleSaveScore}
                 className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold uppercase tracking-wider"
               >
-                Save Score
+                Save Marks
               </button>
             </div>
           </div>
@@ -1576,7 +1378,7 @@ export default function AdminTeamsClient() {
       {/* Elimination Reason Edit Modal */}
       {editingReasonTeamId && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#121111] border border-amber-500/30 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl font-mono text-xs">
+          <div className="bg-[#1c1a1a] border border-amber-500/30 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl font-mono text-xs admin-modal">
             <h3 className="text-base font-bold text-white uppercase">Edit Elimination Reason</h3>
             <textarea
               value={reasonInput}
@@ -1603,7 +1405,7 @@ export default function AdminTeamsClient() {
       {/* Team Details Modal (Roster, Scores & Progression History) */}
       {detailTeam && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#121111] border border-white/20 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 space-y-6 shadow-2xl font-mono text-xs">
+          <div className="bg-[#1c1a1a] border border-white/20 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 space-y-6 shadow-2xl font-mono text-xs admin-modal">
             <div className="flex items-start justify-between border-b border-white/10 pb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -1646,19 +1448,19 @@ export default function AdminTeamsClient() {
             <div className="space-y-2">
               <h4 className="text-xs uppercase font-bold text-white/60 tracking-wider">Score Breakdown</h4>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 admin-panel">
                   <span className="text-[10px] text-white/40 block">Level 1</span>
                   <span className="text-sm font-bold text-white">{detailTeam.scores.s1 ?? "—"}</span>
                 </div>
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 admin-panel">
                   <span className="text-[10px] text-white/40 block">Level 2</span>
                   <span className="text-sm font-bold text-white">{detailTeam.scores.s2 ?? "—"}</span>
                 </div>
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 admin-panel">
                   <span className="text-[10px] text-white/40 block">Level 3</span>
                   <span className="text-sm font-bold text-white">{detailTeam.scores.s3 ?? "—"}</span>
                 </div>
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 admin-panel">
                   <span className="text-[10px] text-white/40 block">Level 4</span>
                   <span className="text-sm font-bold text-white">{detailTeam.scores.s4 ?? "—"}</span>
                 </div>
@@ -1672,7 +1474,7 @@ export default function AdminTeamsClient() {
             {/* Progression & Shortlisting History */}
             <div className="space-y-2">
               <h4 className="text-xs uppercase font-bold text-white/60 tracking-wider">Progression Timeline & History</h4>
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10 space-y-2.5">
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10 space-y-2.5 admin-panel">
                 <div className="flex items-center justify-between">
                   <span className="text-white/60">Level 3 Shortlist Status:</span>
                   <span className="font-bold text-white uppercase">{detailTeam.shortlist_l3.decision}</span>
@@ -1685,7 +1487,7 @@ export default function AdminTeamsClient() {
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-white/5">
                   <span className="text-white/60">Level 4 Finalist Status:</span>
-                  <span className={`font-bold uppercase ${detailTeam.shortlist_l4.qualified ? "text-purple-300" : "text-white/40"}`}>
+                  <span className={`font-bold uppercase ${detailTeam.shortlist_l4.qualified ? "text-champagne-300" : "text-white/40"}`}>
                     {detailTeam.shortlist_l4.qualified ? "Qualified Finalist" : "Not Qualified"}
                   </span>
                 </div>
@@ -1707,7 +1509,7 @@ export default function AdminTeamsClient() {
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {detailTeam.members.map((m) => (
-                  <div key={m.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+                  <div key={m.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col justify-between admin-panel">
                     <div>
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-white text-xs">{m.name}</span>

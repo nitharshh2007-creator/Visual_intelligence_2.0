@@ -10,6 +10,7 @@ import type { RegistrationTeam } from "@/lib/types";
 import type { RegistrationErrorCode } from "@/lib/types";
 import LobbyBoard from "@/components/register/LobbyBoard";
 import JoinTeamFlow from "@/components/register/JoinTeamFlow";
+import Loader from "@/components/ui/Loader";
 
 const DRAFT_KEY = "vi2-captain-code";
 
@@ -22,6 +23,9 @@ const ERROR_MESSAGES: Record<RegistrationErrorCode, string> = {
   NOT_ELIGIBLE: "Not eligible for this event — registration is first-year students only.",
   RATE_LIMITED: "Please wait a moment before trying again.",
   NETWORK_ERROR: "Network error. Please check your connection and try again.",
+  MISSING_FIELDS: "Please fill in the team name, captain name, registration number and email.",
+  EMAIL_TAKEN: "That email is already registered on a team — use a different email.",
+  SERVER_ERROR: "Registration couldn't be completed because of a server problem. Please try again, or ask an organizer for help.",
 };
 
 type Mode = "choose" | "create" | "join";
@@ -114,11 +118,17 @@ export default function RegisterPage() {
     router.push(`/register/${normalizeTeamCode(reenterCode)}`);
   };
 
-  if (!hydrated) return null;
+  if (!hydrated) {
+    return (
+      <main className="registration-page relative z-10 min-h-screen text-brand-fg px-6 lg:px-12 py-20">
+        <Loader label="Loading registration" />
+      </main>
+    );
+  }
 
   return (
     <main className="registration-page relative z-10 min-h-screen text-brand-fg px-6 lg:px-12 py-20">
-      <div className="max-w-3xl mx-auto mb-12">
+      <div className={`${mode === "join" && !team ? "max-w-5xl" : "max-w-3xl"} mx-auto mb-12`}>
         {mode === "choose" || team ? (
           <Link href="/" className="font-sans text-xs uppercase tracking-[0.15em] text-brand-fg/50 hover:text-brand-fg transition-colors">
             ← Back home
@@ -161,10 +171,12 @@ export default function RegisterPage() {
             {eventDetails.eligibility}
           </p>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="choose-grid grid md:grid-cols-2 gap-6">
             <button
               onClick={() => setMode("create")}
-              className="group text-left p-8 rounded-2xl border-2 border-brand-fg/15 bg-brand-light hover:border-brand-accent/50 transition-colors"
+              data-tilt
+              data-tilt-max="4"
+              className="group text-left p-8 vi-card vi-card-interactive"
             >
               <p className="text-[10px] font-sans uppercase tracking-[0.2em] text-brand-accent-strong mb-3">Start a team</p>
               <h2 className="font-serif text-2xl md:text-3xl mb-3">Create a Team</h2>
@@ -172,13 +184,15 @@ export default function RegisterPage() {
                 You&apos;re the captain. Get an invite code, link, and QR to bring in the rest of your {TEAM_MAX}.
               </p>
               <span className="inline-block mt-6 text-xs font-sans uppercase tracking-wider text-brand-fg group-hover:text-brand-accent-strong transition-colors">
-                Get started →
+                Get started <span aria-hidden="true" className="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
               </span>
             </button>
 
             <button
               onClick={() => setMode("join")}
-              className="group text-left p-8 rounded-2xl border-2 border-brand-fg/15 bg-brand-light hover:border-brand-accent/50 transition-colors"
+              data-tilt
+              data-tilt-max="4"
+              className="group text-left p-8 vi-card vi-card-interactive"
             >
               <p className="text-[10px] font-sans uppercase tracking-[0.2em] text-brand-accent-strong mb-3">Have a code?</p>
               <h2 className="font-serif text-2xl md:text-3xl mb-3">Join With a Code</h2>
@@ -186,7 +200,7 @@ export default function RegisterPage() {
                 Your captain already created the team. Enter the code they shared to hop on the roster.
               </p>
               <span className="inline-block mt-6 text-xs font-sans uppercase tracking-wider text-brand-fg group-hover:text-brand-accent-strong transition-colors">
-                Enter code →
+                Enter code <span aria-hidden="true" className="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
               </span>
             </button>
           </div>
@@ -194,12 +208,13 @@ export default function RegisterPage() {
           <div className="mt-10 text-center">
             <button
               onClick={() => setShowReenter((v) => !v)}
-              className="text-xs font-sans uppercase tracking-wider text-brand-fg/50 hover:text-brand-fg transition-colors"
+              aria-expanded={showReenter}
+              className="min-h-11 px-2 text-xs font-sans uppercase tracking-wider text-brand-fg/60 hover:text-brand-accent underline-offset-4 hover:underline transition-colors"
             >
               Already registered? Re-enter your lobby
             </button>
             {showReenter && (
-              <form onSubmit={handleReenter} className="mt-4 flex gap-2 max-w-sm mx-auto">
+              <form onSubmit={handleReenter} className="reenter-form mt-4 flex gap-2 max-w-sm mx-auto">
                 <input
                   aria-label="Team code"
                   value={reenterCode}
@@ -207,7 +222,7 @@ export default function RegisterPage() {
                   placeholder="DUM-XXXX"
                   className="flex-1 px-4 py-2 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors uppercase"
                 />
-                <button type="submit" className="px-4 py-2 rounded-lg border border-brand-fg/15 text-xs font-sans uppercase tracking-wider text-brand-fg/70 hover:text-brand-fg hover:border-brand-fg/40 transition-colors">
+                <button type="submit" className="px-5 py-2 rounded-lg border border-brand-fg/20 bg-brand-light text-xs font-sans uppercase tracking-wider text-brand-fg/80 hover:text-brand-fg hover:border-brand-accent/60 hover:shadow-md active:scale-[0.98] transition-all">
                   Go
                 </button>
               </form>
@@ -293,7 +308,7 @@ export default function RegisterPage() {
 
             {error && <p role="alert" className="text-xs font-sans text-red-600">{error}</p>}
 
-            <button type="submit" disabled={submitting} className="luxury-button w-full disabled:opacity-50">
+            <button type="submit" disabled={submitting} aria-busy={submitting} className="luxury-button w-full">
               {submitting ? "Creating…" : "Create Team"}
             </button>
           </form>

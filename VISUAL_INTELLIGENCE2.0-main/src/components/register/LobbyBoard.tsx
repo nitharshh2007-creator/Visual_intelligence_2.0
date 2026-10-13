@@ -30,11 +30,11 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     <button
       onClick={handleCopy}
       aria-label={copied ? "Copied!" : `Copy ${label}`}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-brand-fg/20 bg-brand-light text-[11px] font-sans uppercase tracking-wider text-brand-fg/60 hover:text-brand-fg hover:border-brand-fg/40 transition-all focus-visible:outline-2 focus-visible:outline-brand-accent"
+      className="inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-md border border-wine-700 bg-wine-600 text-[11px] font-sans font-semibold uppercase tracking-wider text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_8px_18px_-10px_rgba(107,15,26,0.8)] hover:bg-wine-500 transition-all focus-visible:outline-2 focus-visible:outline-brand-accent"
     >
       <AnimatePresence mode="wait" initial={false}>
         {copied ? (
-          <motion.span key="ok" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} className="text-emerald-600 inline-flex items-center gap-1">
+          <motion.span key="ok" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} className="inline-flex items-center gap-1">
             <Check className="w-3 h-3" /> Copied
           </motion.span>
         ) : (
@@ -66,11 +66,12 @@ export default function LobbyBoard({ team, isCaptainView, onRegisterNew }: Props
   return (
     <div className="max-w-2xl mx-auto px-0">
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8 pb-6 border-b border-brand-fg/10">
-        <div className="min-w-0">
-          <p className="text-[10px] font-sans uppercase tracking-[0.2em] text-brand-accent-strong mb-1">Team Lobby</p>
-          <h1 className="font-serif text-3xl md:text-4xl text-brand-fg leading-tight truncate">{team.name}</h1>
-          <p className="text-xs font-sans text-brand-fg/50 mt-1.5">
+      <div className="lobby-hero">
+        <div className="lobby-hero-orbit" aria-hidden="true"><span /><span /><i /></div>
+        <div className="min-w-0 relative">
+          <p className="lobby-kicker">Team Lobby</p>
+          <h1 className="lobby-name">{team.name}</h1>
+          <p className="lobby-meta">
             {isOverLimit
               ? `${team.members.length} members · Legacy roster · Eligible to compete`
               : isFull
@@ -81,29 +82,22 @@ export default function LobbyBoard({ team, isCaptainView, onRegisterNew }: Props
           </p>
         </div>
         <span
-          className={`self-start flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-sans font-semibold uppercase tracking-wider border ${
-            isOverLimit
-              ? "bg-amber-500/10 text-amber-700 border-amber-500/30"
-              : isFull
-              ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
-              : isReady
-              ? "bg-sky-500/10 text-sky-700 border-sky-500/30"
-              : "bg-amber-500/10 text-amber-700 border-amber-500/30"
-          }`}
+          className="lobby-status"
+          data-tone={isOverLimit ? "notice" : isFull ? "full" : isReady ? "ready" : "notice"}
         >
           {isOverLimit ? "Existing team" : isFull ? "Full" : isReady ? "Ready" : "Incomplete"}
         </span>
       </div>
 
       {isOverLimit && (
-        <p className="mb-6 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs font-sans text-brand-fg/60">
+        <p className="mb-6 rounded-lg border border-champagne-500/40 bg-champagne-200/40 px-4 py-3 text-xs font-sans text-brand-fg/70">
           This team was registered before the four-member limit changed. Its full roster is preserved, and no additional members can join.
         </p>
       )}
 
       {/* ── Member roster ── */}
       <div className="mb-8">
-        <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-brand-fg/40 mb-3">Roster</p>
+        <p className="lobby-section-label">Roster <span>{team.members.length}/{TEAM_MAX}</span></p>
         <div className="space-y-2">
           {slots.map((member, i) => (
             <motion.div
@@ -111,15 +105,13 @@ export default function LobbyBoard({ team, isCaptainView, onRegisterNew }: Props
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
-                member
-                  ? "bg-brand-light border-brand-fg/12 shadow-sm"
-                  : "bg-transparent border-dashed border-brand-fg/12"
-              }`}
+              className="lobby-member"
+              data-empty={member ? undefined : ""}
+              data-captain={member?.isCaptain || undefined}
             >
               {member ? (
                 <>
-                  <div className="w-9 h-9 rounded-full bg-brand-accent/12 border border-brand-accent/25 flex items-center justify-center font-sans text-xs font-semibold text-brand-fg flex-shrink-0">
+                  <div className="lobby-avatar" data-tone={i % 4} aria-hidden="true">
                     {member.initials}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -129,7 +121,7 @@ export default function LobbyBoard({ team, isCaptainView, onRegisterNew }: Props
                     </p>
                   </div>
                   {member.isCaptain && (
-                    <span className="flex-shrink-0 text-[9px] font-sans uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-accent/10 text-brand-accent-strong border border-brand-accent/20">
+                    <span className="lobby-captain-tag">
                       Captain
                     </span>
                   )}
@@ -153,7 +145,7 @@ export default function LobbyBoard({ team, isCaptainView, onRegisterNew }: Props
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
-          className="rounded-2xl border border-brand-fg/12 bg-brand-light p-6 mb-6"
+          className="vi-card p-6 mb-6"
         >
           <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-brand-fg/40 mb-4">
             {isReady
@@ -211,19 +203,19 @@ export default function LobbyBoard({ team, isCaptainView, onRegisterNew }: Props
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center shadow-lg shadow-emerald-500/5 space-y-4"
+          className="lobby-full"
         >
           <div>
-            <p className="font-serif text-2xl md:text-3xl text-emerald-800 italic mb-1">Your team is full!</p>
-            <p className="text-sm font-sans text-brand-fg/70">All {TEAM_MAX} slots filled. You are ready to enter the arena.</p>
+            <p className="lobby-full-title">Your team is <em>full!</em></p>
+            <p className="lobby-full-sub">All {TEAM_MAX} slots filled. You are ready to enter the arena.</p>
           </div>
 
           <div className="pt-2">
             <Link
               href="/stages/cyber-styling"
-              className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-sm tracking-wide uppercase transition-all shadow-md hover:shadow-emerald-600/30 hover:-translate-y-0.5 active:translate-y-0 group"
+              className="lobby-play group"
             >
-              <Play className="w-4 h-4 fill-white text-white group-hover:scale-110 transition-transform" />
+              <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />
               <span>Go to Game / Round 1</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
@@ -233,15 +225,15 @@ export default function LobbyBoard({ team, isCaptainView, onRegisterNew }: Props
 
       {/* ── Member view: show invite code read-only ── */}
       {!isCaptainView && (
-        <div className="rounded-2xl border border-brand-fg/12 bg-brand-light p-5">
-          <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-brand-fg/40 mb-3">Your Team Code</p>
+        <div className="lobby-code">
+          <p className="lobby-code-label">Your Team Code</p>
           <div className="flex items-center gap-2">
-            <div className="flex-1 px-4 py-2.5 rounded-lg bg-white border border-brand-fg/15 font-mono text-xl tracking-[0.25em] text-brand-fg font-semibold select-all">
+            <div className="lobby-code-value">
               {team.inviteCode}
             </div>
             <CopyButton text={team.inviteCode} label="Code" />
           </div>
-          <p className="text-xs font-sans text-brand-fg/40 mt-3">Bookmark this page to return to your lobby.</p>
+          <p className="lobby-code-hint">Bookmark this page to return to your lobby.</p>
         </div>
       )}
       {/* ── Register a different team ── */}

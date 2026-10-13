@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { findTeamByCode, joinTeam } from "@/lib/registration";
+import { findTeamByCode, joinTeam, normalizeTeamCode } from "@/lib/registration";
 import { TEAM_MAX } from "@/data/event";
 import type { RegistrationErrorCode, RegistrationTeam, TeamPreview } from "@/lib/types";
 import CodeInput from "./CodeInput";
@@ -17,6 +17,9 @@ const ERROR_MESSAGES: Record<RegistrationErrorCode, string> = {
   NOT_ELIGIBLE: "Not eligible for this event — registration is first-year students only.",
   RATE_LIMITED: "Please wait a moment before trying again.",
   NETWORK_ERROR: "Network error. Please check your connection and try again.",
+  MISSING_FIELDS: "Please fill in your name, registration number and email.",
+  EMAIL_TAKEN: "That email is already registered on a team — use a different email.",
+  SERVER_ERROR: "Couldn't join because of a server problem. Please try again, or ask an organizer for help.",
 };
 
 interface Props {
@@ -60,7 +63,7 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
   // up immediately instead of waiting for the student to press the button.
   useEffect(() => {
     function autoLookup() {
-      if (initialCode) handleFind(initialCode);
+      if (initialCode && normalizeTeamCode(initialCode).length >= 7) handleFind(initialCode);
     }
     autoLookup();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,6 +88,8 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
         setJoinError(result.error);
       } else if (result.team) {
         onJoined(result.team);
+      } else {
+        setJoinError("SERVER_ERROR");
       }
     } catch (err) {
       setJoinError((err as { code?: RegistrationErrorCode }).code ?? "NETWORK_ERROR");
@@ -94,130 +99,131 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
   }
 
 
+  const teamFull = !!preview && (preview.status === "full" || preview.memberCount >= TEAM_MAX);
+  const step = !preview ? 1 : teamFull ? 2 : 3;
+  const STEPS = ["Enter the team code", "Confirm your team", "Add your details"];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.76, 0, 0.24, 1] }}
-      className="max-w-md mx-auto"
+      className="join-layout"
     >
-      <h1 className="font-serif text-4xl md:text-5xl mb-3">Join With a Code</h1>
-      <p className="font-sans text-sm text-brand-fg/60 mb-8">
-        Enter the code your captain shared with you.
-      </p>
-
-      <div className="space-y-3 mb-2">
-        <CodeInput value={code} onChange={handleCodeChange} onSubmit={() => handleFind()} autoFocus />
-        <button
-          type="button"
-          onClick={() => handleFind()}
-          disabled={looking || !code.trim()}
-          className="luxury-button w-full disabled:opacity-50"
-        >
-          {looking ? "Looking…" : "Find Team"}
-        </button>
+      <div className="join-intro">
+        <p className="join-eyebrow">Have a code?</p>
+        <h1 className="join-title">Join with a <em>code.</em></h1>
+        <p className="join-lede">
+          Your captain already created the team. Enter the code they shared to take your place on the roster.
+        </p>
+        <ol className="join-steps" aria-label="Joining steps">
+          {STEPS.map((label, i) => (
+            <li key={label} data-state={i + 1 < step ? "done" : i + 1 === step ? "current" : "todo"} aria-current={i + 1 === step ? "step" : undefined}>
+              <span className="join-step-num" aria-hidden="true">{i + 1 < step ? "\u2713" : i + 1}</span>
+              <span>{label}</span>
+            </li>
+          ))}
+        </ol>
+        <div className="join-orbit" aria-hidden="true"><span /><span /><i /></div>
       </div>
 
-      {lookupError && (
-        <div className="text-center mt-3">
-          <p role="alert" className="text-xs font-sans text-red-600">{ERROR_MESSAGES[lookupError]}</p>
-          {lookupError === "INVALID_CODE" && (
-            <Link href="/register" className="text-xs font-sans uppercase tracking-wider text-brand-accent-strong hover:underline mt-2 inline-block">
-              Register a new team instead →
-            </Link>
-          )}
-        </div>
-      )}
-
-      {preview && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="mt-6 p-5 rounded-xl border border-brand-accent/30 bg-brand-accent/[0.06]"
-        >
-          <p className="font-serif text-2xl text-brand-fg mb-1">{preview.name}</p>
-          <p className="text-xs font-sans text-brand-fg/60">
-            {preview.memberCount > TEAM_MAX
-              ? `${preview.memberCount} members · Team full`
-              : `${preview.memberCount}/${TEAM_MAX} slots filled`}
-            {" · "}captain {preview.captainFirstName || "—"}
-          </p>
-        </motion.div>
-      )}
-
-      {preview && preview.status === "full" && (
-        <p className="text-xs font-sans text-red-600 mt-4 text-center">{ERROR_MESSAGES.TEAM_FULL}</p>
-      )}
-
-      {preview && preview.status !== "full" && (
-        <motion.form
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          onSubmit={handleJoin}
-          className="space-y-4 mt-6"
-        >
-          <input
-            aria-label="Your name"
-            value={memberName}
-            onChange={(e) => setMemberName(e.target.value)}
-            placeholder="Your full name"
-            required
-            className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
-          />
-          <input
-            aria-label="Registration number"
-            value={regNo}
-            onChange={(e) => setRegNo(e.target.value)}
-            placeholder="Registration number (e.g. 24CS045)"
-            required
-            className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
-          />
-          <input
-            type="email"
-            aria-label="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@college.edu"
-            required
-            className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              type="tel"
-              aria-label="Phone (optional)"
-            value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Phone (optional)"
-              className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
-            />
-            <input
-              aria-label="Section (optional)"
-            value={section}
-              onChange={(e) => setSection(e.target.value)}
-              placeholder="Section (optional)"
-              className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
-            />
-          </div>
-          <input
-            type="number"
-            aria-label="Year of study (optional)"
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            placeholder="Year of study (optional)"
-            min={1}
-            max={5}
-            className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
-          />
-
-          {joinError && <p className="text-xs font-sans text-red-600">{ERROR_MESSAGES[joinError]}</p>}
-
-          <button type="submit" disabled={submitting} className="luxury-button w-full disabled:opacity-50">
-            {submitting ? "Joining…" : "Join Team"}
+      <div className="join-card">
+        <label htmlFor="team-code" className="join-label">Team code</label>
+        <div className="space-y-3">
+          <CodeInput id="team-code" value={code} onChange={handleCodeChange} onSubmit={() => handleFind()} autoFocus />
+          <button
+            type="button"
+            onClick={() => handleFind()}
+            disabled={looking || !code.trim()}
+            aria-busy={looking}
+            className="luxury-button w-full"
+          >
+            {looking ? "Looking…" : "Find Team"} {!looking && <span aria-hidden="true">→</span>}
           </button>
-        </motion.form>
-      )}
+        </div>
+        <p className="join-hint">Format DUM-1234 · the dash is added for you</p>
+
+        {lookupError && (
+          <div className="join-error">
+            <p role="alert">{ERROR_MESSAGES[lookupError]}</p>
+            {lookupError === "INVALID_CODE" && (
+              <Link href="/register" className="join-error-link">
+                Register a new team instead →
+              </Link>
+            )}
+          </div>
+        )}
+
+        {preview && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="join-preview"
+          >
+            <p className="join-preview-kicker">Team found</p>
+            <p className="join-preview-name">{preview.name}</p>
+            <div className="join-slots" aria-hidden="true">
+              {Array.from({ length: TEAM_MAX }, (_, i) => (
+                <span key={i} data-filled={i < preview.memberCount || undefined} />
+              ))}
+            </div>
+            <p className="join-preview-meta">
+              {preview.memberCount > TEAM_MAX
+                ? `${preview.memberCount} members · Team full`
+                : `${preview.memberCount}/${TEAM_MAX} slots filled`}
+              {" · "}captain {preview.captainFirstName || "—"}
+            </p>
+          </motion.div>
+        )}
+
+        {teamFull && (
+          <div className="join-error"><p role="alert">{ERROR_MESSAGES.TEAM_FULL}</p></div>
+        )}
+
+        {preview && !teamFull && (
+          <motion.form
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            onSubmit={handleJoin}
+            className="join-form"
+          >
+            <div>
+              <label htmlFor="join-name" className="join-label">Your full name</label>
+              <input id="join-name" value={memberName} onChange={(e) => setMemberName(e.target.value)} placeholder="Full name" required autoComplete="name" className="join-input" />
+            </div>
+            <div>
+              <label htmlFor="join-reg" className="join-label">Registration number</label>
+              <input id="join-reg" value={regNo} onChange={(e) => setRegNo(e.target.value)} placeholder="e.g. 24CS045" required className="join-input" />
+            </div>
+            <div>
+              <label htmlFor="join-email" className="join-label">Email</label>
+              <input id="join-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@college.edu" required autoComplete="email" className="join-input" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="join-phone" className="join-label">Phone <small>optional</small></label>
+                <input id="join-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" autoComplete="tel" className="join-input" />
+              </div>
+              <div>
+                <label htmlFor="join-section" className="join-label">Section <small>optional</small></label>
+                <input id="join-section" value={section} onChange={(e) => setSection(e.target.value)} placeholder="Section" className="join-input" />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="join-year" className="join-label">Year of study <small>optional</small></label>
+              <input id="join-year" type="number" value={year} onChange={(e) => setYear(e.target.value)} placeholder="1" min={1} max={5} className="join-input" />
+            </div>
+
+            {joinError && <div className="join-error"><p role="alert">{ERROR_MESSAGES[joinError]}</p></div>}
+
+            <button type="submit" disabled={submitting} aria-busy={submitting} className="luxury-button w-full">
+              {submitting ? "Joining…" : "Join Team"} {!submitting && <span aria-hidden="true">→</span>}
+            </button>
+          </motion.form>
+        )}
+      </div>
     </motion.div>
   );
 }

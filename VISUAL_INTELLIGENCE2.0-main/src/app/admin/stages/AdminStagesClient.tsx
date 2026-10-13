@@ -296,7 +296,7 @@ export default function AdminStagesClient({
       </div>
 
       {/* Clean Telemetry / Summary Strip */}
-      <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono">
+      <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono admin-panel">
         <div className="flex items-center gap-6 flex-wrap">
           <div>
             <span className="text-zinc-500 uppercase text-[10px] tracking-wider block">Duration</span>
@@ -345,7 +345,7 @@ export default function AdminStagesClient({
           return (
             <div
               key={stage.slug}
-              className="rounded-xl p-5 bg-white/[0.02] border border-white/[0.08] hover:border-white/[0.16] transition-all flex flex-col justify-between"
+              className="rounded-xl p-5 bg-white/[0.02] border border-white/[0.08] hover:border-white/[0.16] transition-all flex flex-col justify-between admin-panel"
             >
               <div>
                 {/* Stage Header */}

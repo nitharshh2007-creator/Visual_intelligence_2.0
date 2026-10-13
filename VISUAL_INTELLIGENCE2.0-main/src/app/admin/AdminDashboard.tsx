@@ -200,11 +200,11 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8">
       {/* Toasts */}
-      <div className="fixed top-20 right-4 z-[60] space-y-2">
+      <div className="fixed top-20 right-4 z-[60] space-y-2" role="status" aria-live="polite">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`px-4 py-2 rounded-lg text-xs font-mono border ${
+            className={`px-4 py-2 rounded-lg text-xs font-mono border backdrop-blur-md shadow-[0_12px_30px_-12px_rgba(0,0,0,0.8)] ${
               t.kind === "success" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" : "bg-red-500/10 border-red-500/30 text-red-300"
             }`}
           >
@@ -224,7 +224,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Top bar — read-only status; every control lives in Event Flow below */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-md">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-md admin-panel">
         <div className="flex items-center gap-4 flex-wrap">
           <span className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase tracking-wider border ${
             connection === "connected" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" : "bg-amber-500/10 border-amber-500/30 text-amber-300"
@@ -264,16 +264,17 @@ export default function AdminDashboard() {
       />
 
       {/* Announcement */}
-      <section className="p-4 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-md">
+      <section className="p-4 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-md admin-panel">
         <h2 className="font-sans font-bold uppercase tracking-[0.12em] text-sm text-white/80 mb-4">Announcement</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap gap-2">
           <input
+            aria-label="Announcement"
             value={announcementDraft}
             onChange={(e) => setAnnouncementDraft(e.target.value)}
             placeholder={eventState?.announcement || "Message shown as a banner on the public leaderboard"}
-            className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-white placeholder:text-white/30"
+            className="flex-1 basis-full sm:basis-auto px-3 py-2 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-white placeholder:text-white/30"
           />
-          <button onClick={handlePublishAnnouncement} className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 text-[#060912] text-[10px] uppercase font-bold tracking-wider">
+          <button onClick={handlePublishAnnouncement} className="px-4 py-2 rounded-lg bg-[linear-gradient(180deg,#8a1a2b,#6b0f1a_55%,#4a0a12)] border border-[#4a0a12] text-[#faf8f3] text-[10px] uppercase font-bold tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_8px_18px_-10px_rgba(138,26,43,0.9)] hover:brightness-110 transition-[filter]">
             Publish
           </button>
           <button onClick={() => { setAnnouncementDraft(""); handlePublishAnnouncement(); }} className="px-4 py-2 rounded-lg border border-white/15 text-[10px] uppercase tracking-wider hover:bg-white/5">
@@ -312,17 +313,17 @@ export default function AdminDashboard() {
           </Link>
           <Link
             href="/admin/teams?tab=l3"
-            className="p-3 rounded-lg bg-cyan-950/20 border border-cyan-500/20 hover:bg-cyan-950/40 hover:border-cyan-500/40 transition-all group"
+            className="p-3 rounded-lg bg-wine-950/20 border border-wine-500/20 hover:bg-wine-950/40 hover:border-wine-500/40 transition-all group"
           >
-            <span className="text-[10px] uppercase text-cyan-400/60 block group-hover:text-cyan-300">Level 3 Cutoff</span>
-            <span className="text-cyan-300 font-bold text-xs mt-1 block">Shortlist 10 →</span>
+            <span className="text-[10px] uppercase text-wine-400/60 block group-hover:text-wine-300">Level 3 Cutoff</span>
+            <span className="text-wine-300 font-bold text-xs mt-1 block">Shortlist 10 →</span>
           </Link>
           <Link
             href="/admin/teams?tab=l4"
-            className="p-3 rounded-lg bg-purple-950/20 border border-purple-500/20 hover:bg-purple-950/40 hover:border-purple-500/40 transition-all group"
+            className="p-3 rounded-lg bg-champagne-950/20 border border-champagne-500/20 hover:bg-champagne-950/40 hover:border-champagne-500/40 transition-all group"
           >
-            <span className="text-[10px] uppercase text-purple-400/60 block group-hover:text-purple-300">Finalists</span>
-            <span className="text-purple-300 font-bold text-xs mt-1 block">Prompt Charades →</span>
+            <span className="text-[10px] uppercase text-champagne-400/60 block group-hover:text-champagne-300">Finalists</span>
+            <span className="text-champagne-300 font-bold text-xs mt-1 block">Prompt Charades →</span>
           </Link>
           <Link
             href="/admin/teams?tab=eliminated"
@@ -335,7 +336,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Quick Link to Stages & Assets */}
-      <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.08] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs font-mono">
+      <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.08] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs font-mono admin-panel">
         <div>
           <h3 className="text-xs font-semibold text-white tracking-wide">Stage Readiness &amp; Asset Vault</h3>
           <p className="text-xs text-zinc-400 mt-0.5">

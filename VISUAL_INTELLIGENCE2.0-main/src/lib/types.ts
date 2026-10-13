@@ -98,7 +98,10 @@ export type RegistrationErrorCode =
   | "NAME_TAKEN"
   | "NOT_ELIGIBLE"
   | "RATE_LIMITED"
-  | "NETWORK_ERROR";
+  | "NETWORK_ERROR"
+  | "MISSING_FIELDS"
+  | "EMAIL_TAKEN"
+  | "SERVER_ERROR";
 
 // The minimal, no-PII preview shown after a "Find team" lookup —
 // never a full roster, never reg_no/email/phone (see find_team_by_code

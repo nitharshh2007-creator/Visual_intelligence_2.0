@@ -307,7 +307,7 @@ export default function AdminStageClient({
       </div>
 
       {/* Main glass tab content container */}
-      <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl p-6 md:p-7">
+      <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl p-6 md:p-7 admin-panel">
         {/* ASSETS TAB */}
         {activeTab === "Assets" && (
           <div className="space-y-6">

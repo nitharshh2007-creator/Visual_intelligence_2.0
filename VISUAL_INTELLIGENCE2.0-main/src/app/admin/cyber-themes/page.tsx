@@ -141,7 +141,7 @@ export default function AdminCyberThemesPage() {
     <div className="space-y-8 pb-16">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl bg-cyan-500 text-black font-mono font-bold text-xs shadow-2xl animate-fade-in flex items-center gap-2">
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl bg-wine-600 text-white font-mono font-bold text-xs shadow-2xl animate-fade-in flex items-center gap-2">
           <Sparkles className="w-4 h-4" />
           <span>{toast}</span>
         </div>
@@ -157,7 +157,7 @@ export default function AdminCyberThemesPage() {
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
           </Link>
           <h1 className="text-2xl md:text-3xl font-mono font-bold uppercase tracking-wider text-white flex items-center gap-2.5">
-            <Palette className="w-6 h-6 text-cyan-400" />
+            <Palette className="w-6 h-6 text-wine-400" />
             Round 1 // Cyber Theme Allocation
           </h1>
           <p className="text-xs text-white/60 mt-1 font-mono">
@@ -178,7 +178,7 @@ export default function AdminCyberThemesPage() {
           <button
             onClick={() => handleAllocate(false)}
             disabled={loading || actionLoading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-mono font-bold text-xs transition-colors shadow-lg shadow-cyan-500/20 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-wine-600 hover:bg-wine-500 text-white font-mono font-bold text-xs transition-colors shadow-lg shadow-wine-500/20 disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4" />
             Assign Random Themes to Unassigned Teams
@@ -207,24 +207,24 @@ export default function AdminCyberThemesPage() {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md">
+        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md admin-panel">
           <div className="text-[10px] font-mono uppercase tracking-wider text-white/40">Total Registered Teams</div>
           <div className="text-3xl font-black text-white font-mono mt-2">{data?.total_teams ?? 0}</div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-300">Themes Assigned</div>
-          <div className="text-3xl font-black text-cyan-400 font-mono mt-2">{data?.assigned_teams ?? 0}</div>
+        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md admin-panel">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-wine-300">Themes Assigned</div>
+          <div className="text-3xl font-black text-wine-400 font-mono mt-2">{data?.assigned_teams ?? 0}</div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md">
+        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md admin-panel">
           <div className="text-[10px] font-mono uppercase tracking-wider text-white/40">Pending Assignment</div>
           <div className={`text-3xl font-black font-mono mt-2 ${data?.unassigned_teams ? "text-amber-400" : "text-white/40"}`}>
             {data?.unassigned_teams ?? 0}
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md">
+        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md admin-panel">
           <div className="text-[10px] font-mono uppercase tracking-wider text-emerald-400">Themes Available</div>
           <div className="text-3xl font-black text-emerald-400 font-mono mt-2">
             {data?.available_themes ?? (38 - (data?.assigned_teams ?? 0))}
@@ -232,7 +232,7 @@ export default function AdminCyberThemesPage() {
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md">
+        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md admin-panel">
           <div className="text-[10px] font-mono uppercase tracking-wider text-white/40">Round 1 State</div>
           <div className="text-lg font-bold text-white font-mono mt-2 uppercase flex items-center gap-2">
             <span
@@ -241,7 +241,7 @@ export default function AdminCyberThemesPage() {
                   ? "bg-emerald-400 animate-pulse"
                   : data?.round1_status === "ended"
                   ? "bg-white"
-                  : "bg-cyan-400"
+                  : "bg-wine-400"
               }`}
             />
             {data?.round1_status ?? "loading"}
@@ -260,7 +260,7 @@ export default function AdminCyberThemesPage() {
       )}
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-3 rounded-xl bg-white/[0.02] border border-white/5">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-3 rounded-xl bg-white/[0.02] border border-white/5 admin-panel">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -268,7 +268,7 @@ export default function AdminCyberThemesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search team name, code, or theme title…"
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/30 text-xs font-mono focus:outline-none focus:border-cyan-500/50"
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/30 text-xs font-mono focus:outline-none focus:border-wine-500/50"
           />
         </div>
 
@@ -284,7 +284,7 @@ export default function AdminCyberThemesPage() {
           <button
             onClick={() => setStatusFilter("assigned")}
             className={`px-3 py-1.5 rounded-lg transition-colors ${
-              statusFilter === "assigned" ? "bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30" : "text-white/50 hover:text-white"
+              statusFilter === "assigned" ? "bg-wine-500/20 text-wine-300 font-bold border border-wine-500/30" : "text-white/50 hover:text-white"
             }`}
           >
             Assigned ({data?.assigned_teams ?? 0})
@@ -334,11 +334,11 @@ export default function AdminCyberThemesPage() {
                       <div>{item.team_name}</div>
                       <span className="text-[10px] text-white/40 uppercase">{item.team_status}</span>
                     </td>
-                    <td className="py-3.5 px-4 text-cyan-300">{item.team_code}</td>
+                    <td className="py-3.5 px-4 text-wine-300">{item.team_code}</td>
                     <td className="py-3.5 px-4">
                       {item.theme_title ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/10 border border-white/15 text-white font-bold text-xs">
-                          <Sparkles className="w-3 h-3 text-cyan-400" />
+                          <Sparkles className="w-3 h-3 text-wine-400" />
                           {item.theme_title}
                         </span>
                       ) : (
@@ -365,7 +365,7 @@ export default function AdminCyberThemesPage() {
                       {item.description_line1 ? (
                         <div className="space-y-1 font-sans text-[11px] text-white/80">
                           <div>
-                            <strong className="text-cyan-300 font-mono text-[10px] uppercase">Style: </strong>
+                            <strong className="text-wine-300 font-mono text-[10px] uppercase">Style: </strong>
                             {item.description_line1.replace(/^Visual Style:\s*/i, "")}
                           </div>
                           <div>

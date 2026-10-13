@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getServiceRoleClient } from "@/lib/supabase-service";
 import { CYBER_THEMES, allocateThemesWithoutRepetition } from "@/data/cyberThemes";
+import { isMissingThemeRpc, mapThemeRpcError } from "@/lib/cyberThemeErrors";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code")?.trim().toUpperCase();
-  const regNo = searchParams.get("reg_no")?.trim().toUpperCase();
+  // reg_no is matched exactly (members.reg_no = p_reg_no) — never
+  // change its case, or students who typed it in lowercase can't load.
+  const regNo = searchParams.get("reg_no")?.trim();
 
   if (!code || !regNo) {
     return NextResponse.json({ error: "Team code and registration number are required." }, { status: 400 });
@@ -14,7 +17,9 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
-  // 1. Try secure RPC first
+  // 1. Secure RPC — the database allocator (advisory-locked, no theme
+  //    handed out twice). Its errors are final; only a missing RPC
+  //    (migration 0030 not applied) may use the legacy path below.
   try {
     const { data, error } = await supabase.rpc("get_my_team_cyber_theme", {
       p_code: code,
@@ -26,11 +31,18 @@ export async function GET(request: NextRequest) {
         headers: { "Cache-Control": "private, no-cache, no-store" },
       });
     }
+    if (error && !isMissingThemeRpc(error)) {
+      const { status, error: message } = mapThemeRpcError(error);
+      return NextResponse.json({ error: message }, { status });
+    }
+    if (!error) {
+      return NextResponse.json({ error: "Could not load your theme assignment. Please try again." }, { status: 500 });
+    }
   } catch {
-    // Fall back to server-side service client
+    // Transport failure — fall back to server-side service client
   }
 
-  // 2. Service role execution
+  // 2. Service role execution (legacy fallback)
   try {
     const serviceClient = getServiceRoleClient();
 

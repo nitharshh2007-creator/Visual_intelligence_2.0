@@ -38,6 +38,20 @@ export async function POST(request: NextRequest) {
   try {
     const serviceClient: any = getServiceRoleClient();
 
+    // Level 3 marks only for shortlisted teams, Level 4 only for teams qualified after Level 3.
+    if (stage >= 3) {
+      const { data: sl } = await serviceClient.from("shortlist").select("decision").eq("team_id", team_id).maybeSingle();
+      if (sl?.decision !== "shortlisted") {
+        return NextResponse.json({ error: "Only teams shortlisted after Level 2 can get Level 3/4 marks." }, { status: 400 });
+      }
+    }
+    if (stage === 4) {
+      const { data: q } = await serviceClient.from("qualifiers").select("team_id").eq("team_id", team_id).eq("after_stage", 3).maybeSingle();
+      if (!q) {
+        return NextResponse.json({ error: "Only teams selected after Level 3 can get Level 4 marks." }, { status: 400 });
+      }
+    }
+
     // 1. Upsert score row
     await serviceClient.from("scores").upsert({
       team_id,

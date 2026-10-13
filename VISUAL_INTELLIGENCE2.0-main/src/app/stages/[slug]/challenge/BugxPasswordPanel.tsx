@@ -45,8 +45,8 @@ export default function BugxPasswordPanel({
 
   if (solved) {
     return (
-      <div className="p-6 border border-emerald-500/30 bg-emerald-500/10 rounded-xl text-center space-y-3">
-        <p className="text-emerald-300 font-bold uppercase tracking-wider text-sm">Password unlocked</p>
+      <div className="p-6 border border-champagne-500/30 bg-champagne-500/10 rounded-xl text-center space-y-3">
+        <p className="text-champagne-300 font-bold uppercase tracking-wider text-sm">Password unlocked</p>
         <p className="text-white/60 text-sm">The locked file above is now available. Submit your final answer here:</p>
         {formUrl && (
           isEnded ? (
@@ -58,7 +58,7 @@ export default function BugxPasswordPanel({
               href={formUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-block px-5 py-2.5 bg-emerald-500 text-black rounded font-bold text-sm uppercase tracking-wider"
+              className="inline-block px-5 py-2.5 bg-champagne-500 text-black rounded font-bold text-sm uppercase tracking-wider"
             >
               Open Google Form →
             </a>
@@ -87,17 +87,19 @@ export default function BugxPasswordPanel({
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           placeholder="Password"
-          className="flex-1 px-4 py-2.5 bg-black/40 border border-white/10 rounded text-white"
+          aria-label="BugX password"
+          className="flex-1 min-w-0 px-4 py-2.5 bg-black/40 border border-white/10 rounded text-white focus:outline-none focus:border-[var(--lb-rose-200)] focus:shadow-[0_0_0_3px_rgba(235,169,184,0.15)] transition-[border-color,box-shadow]"
         />
         <button
           onClick={handleSubmit}
           disabled={submitting || !password.trim()}
-          className="px-5 py-2.5 bg-[var(--lb-burgundy-600)] hover:bg-[var(--lb-burgundy-500)] text-white rounded font-bold text-sm uppercase tracking-wider disabled:opacity-50"
+          aria-busy={submitting}
+          className="px-5 py-2.5 bg-[var(--lb-burgundy-600)] hover:bg-[var(--lb-burgundy-500)] text-white rounded font-bold text-sm uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] active:translate-y-px transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? "Checking…" : "Unlock"}
         </button>
       </div>
-      {error && <p className="text-red-400 text-sm">{error}</p>}
+      {error && <p role="alert" className="text-red-400 text-sm">{error}</p>}
     </div>
   );
 }
