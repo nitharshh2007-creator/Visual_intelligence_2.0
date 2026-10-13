@@ -19,6 +19,10 @@ import Reveal, { MaskedWords } from "./fx/Reveal";
 // no hook/rules/content line here at all — that detail only ever lives
 // behind get_stage_content() on the gated stage pages. The per-stage
 // artwork (StageArt) is keyed by stage number and is content-free.
+// Stage names (titles only, no content) are shown on the homepage for
+// every stage, including locked ones.
+const STAGE_NAMES: Record<number, string> = { 1: "Cyber Styling", 2: "BugX Hacker", 3: "Prompt Rumble", 4: "Prompt Charades" };
+
 const STATUS_LABEL: Record<string, string> = {
   LOCKED: "Locked",
   RELEASED: "Opens soon",
@@ -90,7 +94,7 @@ export default function StageCards() {
             </h2>
           </div>
           <p className="stages-note">
-            Unlocked one at a time, in order. Each stage&apos;s name stays sealed until it is released.
+            Unlocked one at a time, in order.
           </p>
         </Reveal>
 
@@ -127,15 +131,10 @@ export default function StageCards() {
                     <h3 className="stage-panel-title">
                       {interactive ? (
                         <Link href={`/stages/${stage.slug}`} className="stage-panel-link">
-                          {stage.name ?? `Stage ${stage.stage}`}
+                          {stage.name ?? STAGE_NAMES[stage.stage] ?? `Stage ${stage.stage}`}
                         </Link>
-                      ) : stage.name ? (
-                        stage.name
                       ) : (
-                        <>
-                          <span className="stage-redacted" aria-hidden="true"><i /><i /></span>
-                          <span className="sr-only">Stage {stage.stage} — name revealed when it opens</span>
-                        </>
+                        stage.name ?? STAGE_NAMES[stage.stage] ?? `Stage ${stage.stage}`
                       )}
                     </h3>
                     <p className="stage-panel-desc">{statusLine(stage)}</p>

@@ -21,7 +21,11 @@ export const metadata: Metadata = {
   title: "Visual Intelligence 2.0",
   description: "4 Stages of Chaos. A live first-year event run by the IEEE Computer Society, CSE.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+    ],
+    apple: "/apple-icon.png",
   },
 };
 

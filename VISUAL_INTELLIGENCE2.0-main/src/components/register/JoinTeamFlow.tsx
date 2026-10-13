@@ -36,9 +36,6 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
   const [memberName, setMemberName] = useState("");
   const [regNo, setRegNo] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [section, setSection] = useState("");
-  const [year, setYear] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [joinError, setJoinError] = useState<RegistrationErrorCode | null>(null);
 
@@ -82,8 +79,7 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
     setSubmitting(true);
     setJoinError(null);
     try {
-      const yearNum = year.trim() ? Number(year.trim()) : undefined;
-      const result = await joinTeam(code, memberName, regNo, email, phone.trim() || undefined, section.trim() || undefined, yearNum);
+      const result = await joinTeam(code, memberName, regNo, email);
       if (result.error) {
         setJoinError(result.error);
       } else if (result.team) {
@@ -191,29 +187,15 @@ export default function JoinTeamFlow({ initialCode, onJoined }: Props) {
           >
             <div>
               <label htmlFor="join-name" className="join-label">Your full name</label>
-              <input id="join-name" value={memberName} onChange={(e) => setMemberName(e.target.value)} placeholder="Full name" required autoComplete="name" className="join-input" />
+              <input id="join-name" value={memberName} onChange={(e) => setMemberName(e.target.value)} placeholder="Tara" required autoComplete="name" className="join-input" />
             </div>
             <div>
               <label htmlFor="join-reg" className="join-label">Registration number</label>
-              <input id="join-reg" value={regNo} onChange={(e) => setRegNo(e.target.value)} placeholder="e.g. 24CS045" required className="join-input" />
+              <input id="join-reg" value={regNo} onChange={(e) => setRegNo(e.target.value.toUpperCase())} placeholder="URK26CSXXXX" pattern="URK26CS[0-9]{4}" maxLength={11} title="Use the format URK26CS followed by four digits." required className="join-input" />
             </div>
             <div>
               <label htmlFor="join-email" className="join-label">Email</label>
-              <input id="join-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@college.edu" required autoComplete="email" className="join-input" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="join-phone" className="join-label">Phone <small>optional</small></label>
-                <input id="join-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" autoComplete="tel" className="join-input" />
-              </div>
-              <div>
-                <label htmlFor="join-section" className="join-label">Section <small>optional</small></label>
-                <input id="join-section" value={section} onChange={(e) => setSection(e.target.value)} placeholder="Section" className="join-input" />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="join-year" className="join-label">Year of study <small>optional</small></label>
-              <input id="join-year" type="number" value={year} onChange={(e) => setYear(e.target.value)} placeholder="1" min={1} max={5} className="join-input" />
+              <input id="join-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@karunya.edu.in" pattern="[A-Za-z0-9._%+-]+@karunya\.edu\.in" title="Use your @karunya.edu.in email address." required autoComplete="email" className="join-input" />
             </div>
 
             {joinError && <div className="join-error"><p role="alert">{ERROR_MESSAGES[joinError]}</p></div>}

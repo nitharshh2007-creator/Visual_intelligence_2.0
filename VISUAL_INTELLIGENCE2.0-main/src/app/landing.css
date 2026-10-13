@@ -1051,12 +1051,9 @@
 .stage-panel[data-interactive]:hover .stage-panel-card { translate: 0 -6px; box-shadow: var(--vi-highlight), var(--vi-shadow-4); }
 .stage-panel[data-interactive]:hover .stage-panel-cta .button-arrow { translate: 4px 0; }
 
-/* ── Artwork (StageArt.tsx). Loops pause unless the panel is active. */
+/* ── Artwork (StageArt.tsx). Loops run on every panel, locked or not. */
 .art { display: block; width: 100%; height: 100%; }
-.art * { animation-play-state: paused; }
-.stage-panel:is(:hover, :focus-within) .art *,
-.stage-list:not(:hover, :focus-within) .stage-panel[data-featured] .art * { animation-play-state: running; }
-.stage-panel[data-state="locked"] .art * { animation-play-state: paused !important; }
+.art * { animation-play-state: running; }
 
 .art-signal-rings circle { stroke: var(--p-line); stroke-width: 1; }
 .art-axis { stroke: var(--p-line); stroke-width: .6; opacity: .6; }

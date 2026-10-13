@@ -271,7 +271,7 @@ export default function RegisterPage() {
                 id="captain-name"
                 value={captainName}
                 onChange={(e) => setCaptainName(e.target.value)}
-                placeholder="e.g. Aarav S."
+                placeholder="Tara"
                 required
                 className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
               />
@@ -284,8 +284,11 @@ export default function RegisterPage() {
               <input
                 id="registration-number"
                 value={regNo}
-                onChange={(e) => setRegNo(e.target.value)}
-                placeholder="e.g. 24CS045"
+                onChange={(e) => setRegNo(e.target.value.toUpperCase())}
+                placeholder="URK26CSXXXX"
+                pattern="URK26CS[0-9]{4}"
+                maxLength={11}
+                title="Use the format URK26CS followed by four digits."
                 required
                 className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
               />
@@ -300,7 +303,9 @@ export default function RegisterPage() {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@college.edu"
+                placeholder="name@karunya.edu.in"
+                pattern="[A-Za-z0-9._%+-]+@karunya\.edu\.in"
+                title="Use your @karunya.edu.in email address."
                 required
                 className="w-full px-4 py-3 rounded-lg bg-brand-light border border-brand-fg/15 text-sm font-sans text-brand-fg placeholder:text-brand-fg/30 focus:outline-none focus:border-brand-accent/50 transition-colors"
               />
