@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Sparkles, Shuffle, ShieldAlert, Search, ArrowLeft, RefreshCw, Palette } from "lucide-react";
-import type { CyberThemePaletteColor } from "@/data/cyberThemes";
+import { CYBER_THEMES, type CyberThemePaletteColor } from "@/data/cyberThemes";
 
 interface AllocationItem {
   team_id: string;
@@ -161,7 +161,7 @@ export default function AdminCyberThemesPage() {
             Round 1 // Cyber Theme Allocation
           </h1>
           <p className="text-xs text-white/60 mt-1 font-mono">
-            Manage the official 38-theme catalog and fair randomized team distribution (1 theme per team, zero repetition).
+            Manage the official {data?.total_catalogue_themes ?? CYBER_THEMES.length}-theme catalog and fair randomized team distribution (1 theme per team, zero repetition).
           </p>
         </div>
 
@@ -227,8 +227,8 @@ export default function AdminCyberThemesPage() {
         <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md admin-panel">
           <div className="text-[10px] font-mono uppercase tracking-wider text-emerald-400">Themes Available</div>
           <div className="text-3xl font-black text-emerald-400 font-mono mt-2">
-            {data?.available_themes ?? (38 - (data?.assigned_teams ?? 0))}
-            <span className="text-xs text-white/40 font-normal ml-1">/ 38</span>
+            {data?.available_themes ?? (CYBER_THEMES.length - (data?.assigned_teams ?? 0))}
+            <span className="text-xs text-white/40 font-normal ml-1">/ {data?.total_catalogue_themes ?? CYBER_THEMES.length}</span>
           </div>
         </div>
 

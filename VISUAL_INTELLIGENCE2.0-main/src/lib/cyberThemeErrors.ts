@@ -23,7 +23,7 @@ export function mapThemeRpcError(error: ThemeRpcError): ThemeErrorResponse {
     if (/invalid team code|team not found/i.test(message)) return { status: 404, error: "Invalid team code." };
     if (/member not found/i.test(message)) return { status: 403, error: "Member registration number not found on this team." };
     if (/already been allocated/i.test(message)) {
-      return { status: 409, error: "All 38 themes have already been allocated. Please contact an organizer." };
+      return { status: 409, error: "All themes have already been allocated. Please contact an organizer." };
     }
   }
   return { status: 500, error: "Could not load your theme assignment. Please try again." };

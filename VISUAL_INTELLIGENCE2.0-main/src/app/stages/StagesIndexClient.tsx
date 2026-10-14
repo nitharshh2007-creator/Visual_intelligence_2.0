@@ -10,6 +10,7 @@ import StageProgressRail from "@/components/stages/StageProgressRail";
 import { lockMessage, isEliminatedAccess } from "@/components/stages/StageLockCard";
 import StageArt from "@/components/stages/StageArt";
 import Loader from "@/components/ui/Loader";
+import RejoinTeam from "@/components/stages/RejoinTeam";
 import { Check, Lock, X } from "lucide-react";
 import "@/app/landing.css";
 
@@ -148,6 +149,8 @@ export default function StagesIndexClient() {
           );
         })}
       </ol>
+
+      <RejoinTeam />
     </div>
   );
 }

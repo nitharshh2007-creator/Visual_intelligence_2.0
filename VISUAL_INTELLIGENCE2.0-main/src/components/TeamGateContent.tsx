@@ -4,7 +4,8 @@ import Link from "next/link";
 import type { TeamGateState } from "@/hooks/useTeamGate";
 import type { RegistrationTeam } from "@/lib/types";
 import { TEAM_MIN } from "@/data/event";
-import { Users, Lock } from "lucide-react";
+import { Users, Lock, WifiOff } from "lucide-react";
+import RejoinTeam from "@/components/stages/RejoinTeam";
 
 // Pure presentational wall — shared by TeamGate (wraps /stages) and
 // /leaderboard directly, since the leaderboard needs to keep its own
@@ -12,6 +13,27 @@ import { Users, Lock } from "lucide-react";
 // wrapper, and needs the projector-token bypass TeamGate doesn't know
 // about.
 export default function TeamGateContent({ state, team }: { state: Exclude<TeamGateState, "checking" | "ok">; team: RegistrationTeam | null }) {
+  if (state === "error") {
+    return (
+      <div className="lb-panel max-w-md mx-4 sm:mx-auto my-12 px-6 py-14 text-center rounded-[28px] border border-white/10 bg-[linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
+        <div className="flex justify-center mb-6" aria-hidden="true">
+          <WifiOff className="w-12 h-12 text-white/40" />
+        </div>
+        <h1 className="text-2xl font-serif text-white mb-3">Couldn&apos;t reach the server</h1>
+        <p className="text-sm text-white/60 mb-8 leading-relaxed">
+          Your team session is still saved on this device. Check your connection and try again — you&apos;ll return to this same page.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="lb-cta inline-block px-6 py-3 rounded-full font-bold text-sm uppercase tracking-widest"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="lb-panel max-w-md mx-4 sm:mx-auto my-12 px-6 py-14 text-center rounded-[28px] border border-white/10 bg-[linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
       <div className="flex justify-center mb-6" aria-hidden="true">
@@ -35,6 +57,7 @@ export default function TeamGateContent({ state, team }: { state: Exclude<TeamGa
       >
         {state === "incomplete" ? "Go to Your Lobby" : "Register or Join a Team"}
       </Link>
+      {state === "no-session" && <RejoinTeam />}
     </div>
   );
 }

@@ -9,48 +9,26 @@ import {
   adminRecordScoreEntry, adminUpdateEliminationReason, adminSetShortlistConfig,
   type MasterTeamRecord, type MasterShortlistResponse
 } from "@/lib/admin";
+import { RUBRICS, STAGE_MAX, speedMarksForMinutes, validateScoreEntry } from "@/lib/scoring";
+import {
+  recommendAfterRound2, recommendAfterRound3, planRound3Decisions,
+  DEFAULT_TOP_AFTER_ROUND_2, DEFAULT_TOP_AFTER_ROUND_3, type RankableTeam
+} from "@/lib/shortlistRanking";
+import ShortlistRecommendation from "./ShortlistRecommendation";
 import {
   Users, CheckCircle2, XCircle, AlertTriangle, ShieldCheck,
   Search, SlidersHorizontal, ArrowUpDown, ChevronDown, ChevronRight,
   Edit2, Trash2, UserPlus, ArrowRightLeft, FileSpreadsheet,
   Award, Clock, Eye, Sparkles, Filter, X,
-  Laptop, Bug, Video, UserX
+  Laptop, Bug, Video, UserX, Download
 } from "lucide-react";
 
 type ActiveTab = "all" | "l1" | "l2" | "l3" | "l4" | "eliminated";
 type SubFilter = "all" | "eligible" | "shortlisted" | "not_shortlisted";
 type SortKey = "name" | "total" | "level" | "created_at" | "member_count";
 
-// Judge guide: every round is marked out of 25.
-const STAGE_MAX = 25;
+// Judge guide (VI2_Judge_Marks_Sheets.xlsx): every round is marked out of 25 — see src/lib/scoring.ts.
 const STAGE_NAMES: Record<number, string> = { 1: "Cyber Styling", 2: "BugX Hacker", 3: "Prompt Rumble", 4: "Prompt Charades" };
-const RUBRICS: Record<number, Array<{ key: string; label: string; hint: string; max: number }>> = {
-  1: [
-    { key: "creativity", label: "Creativity / Originality", hint: "Fresh ideas, not a generic look", max: 5 },
-    { key: "functionality", label: "Functionality", hint: "Page works: buttons, links, scripts", max: 5 },
-    { key: "timing", label: "Timing", hint: "Submitted on time (Google Form time)", max: 5 },
-    { key: "output", label: "Output", hint: "Final page clearly matches the theme", max: 5 },
-    { key: "prompt_quality", label: "Prompt Quality", hint: "Clear, specific, refined prompts", max: 5 },
-  ],
-  2: [
-    { key: "password", label: "Correct password", hint: "Password from the ZIP is right", max: 10 },
-    { key: "code_word", label: "Correct code word", hint: "Code word from the PDF is right", max: 8 },
-    { key: "speed", label: "Speed", hint: "≤8 min 7 · 12 min 5 · 16 min 3 · 20 min 1", max: 7 },
-  ],
-  3: [
-    { key: "creativity", label: "Creativity", hint: "Original idea and treatment", max: 5 },
-    { key: "assets", label: "Use of 3 images + 3 words", hint: "All six used, clearly visible", max: 5 },
-    { key: "storytelling", label: "Storytelling", hint: "Clear beginning, point and ending in 30 sec", max: 5 },
-    { key: "prompt_ai", label: "Prompt / AI usage", hint: "Smart, specific use of AI tools", max: 5 },
-    { key: "ad_quality", label: "Final ad quality", hint: "Looks and sounds polished", max: 5 },
-  ],
-  4: [
-    { key: "communication", label: "Communication", hint: "Describers explained well without naming it", max: 5 },
-    { key: "prompt_quality", label: "Prompt quality", hint: "Guesser's prompt is clear and detailed", max: 5 },
-    { key: "visual", label: "Visual interpretation", hint: "Understood the key parts of the picture", max: 5 },
-    { key: "similarity", label: "Similarity to original", hint: "How close the image is to the original", max: 10 },
-  ],
-};
 
 interface EditMemberState {
   memberId: string;
@@ -281,6 +259,32 @@ export default function AdminTeamsClient() {
     [data, selectedForL3]
   );
 
+  // ── Ranking recommendations (read-only; they only tick boxes locally) ──
+  const [topAfterR2, setTopAfterR2] = useState(DEFAULT_TOP_AFTER_ROUND_2);
+  const [topAfterR3, setTopAfterR3] = useState(DEFAULT_TOP_AFTER_ROUND_3);
+  const rankable = useMemo<RankableTeam[]>(
+    () =>
+      (data?.teams ?? []).map((t) => ({
+        id: t.id,
+        name: t.name,
+        status: t.status,
+        scores: { s1: t.scores.s1, s2: t.scores.s2, s3: t.scores.s3 },
+        l3Decision: t.shortlist_l3.decision,
+      })),
+    [data]
+  );
+  const recAfterR2 = useMemo(() => recommendAfterRound2(rankable, topAfterR2), [rankable, topAfterR2]);
+  const recAfterR3 = useMemo(() => recommendAfterRound3(rankable, topAfterR3), [rankable, topAfterR3]);
+
+  const applyRecommendation = (round: 2 | 3) => {
+    const rec = round === 2 ? recAfterR2 : recAfterR3;
+    (round === 2 ? setSelectedForL3 : setSelectedForL4)(new Set(rec.recommendedIds));
+    const tieNote = rec.tiedAtCutoffIds.length
+      ? ` ${rec.tiedAtCutoffIds.length} team(s) are tied at the cutoff for ${rec.openSlots} remaining slot(s) — tick them yourself.`
+      : "";
+    notify(`${rec.recommendedIds.length} recommended team(s) ticked. Nothing is saved until you confirm.${tieNote}`);
+  };
+
   const handleSaveL2Shortlist = async () => {
     if (!data) return;
     if (selectedForL3.size === 0) {
@@ -294,14 +298,12 @@ export default function AdminTeamsClient() {
     setIsSavingL2Shortlist(true);
     try {
       if (l2Cutoff !== null) await adminSetShortlistConfig(l2Cutoff, 0, 0);
-      const writes = data.teams.flatMap((t) => {
-        if (selectedForL3.has(t.id)) {
-          return t.shortlist_l3.decision === "shortlisted" ? [] : [adminSetShortlistDecision(t.id, "shortlisted", undefined, true)];
-        }
-        return t.shortlist_l3.decision === "rejected"
-          ? []
-          : [adminSetShortlistDecision(t.id, "rejected", `Below Level 2 cutoff${l2Cutoff !== null ? ` (${l2Cutoff})` : ""}`)];
-      });
+      const plan = planRound3Decisions(
+        data.teams.map((t) => ({ id: t.id, l3Decision: t.shortlist_l3.decision })),
+        selectedForL3,
+        `Below Level 2 cutoff${l2Cutoff !== null ? ` (${l2Cutoff})` : ""}`
+      );
+      const writes = plan.map((w) => adminSetShortlistDecision(w.teamId, w.decision, w.note, w.override));
       const results = await Promise.allSettled(writes);
       const failed = results.filter((r) => r.status === "rejected").length;
       if (failed) notify(`${failed} update(s) failed — check the list and save again.`, "err");
@@ -397,37 +399,70 @@ export default function AdminTeamsClient() {
     if (filled.length) setScoreInput(String(filled.reduce((sum, c) => sum + (parseFloat(next[c.key]) || 0), 0)));
   };
 
+  // Round 2 speed from the Form solve time (judge sheet rule).
+  const applySolveTime = (raw: string) => {
+    const minutes = parseFloat(raw);
+    if (raw.trim() === "" || isNaN(minutes)) return;
+    const marks = speedMarksForMinutes(minutes);
+    if (marks === null) {
+      notify("The judge sheet has no speed rule beyond 20 minutes — enter Speed by hand.", "err");
+      return;
+    }
+    updateRubric("speed", String(marks));
+  };
+
   const handleSaveScore = async () => {
     if (!scoreModalTeam) return;
     const { team, stage } = scoreModalTeam;
-    for (const c of RUBRICS[stage]) {
-      const v = rubric[c.key];
-      if (v !== undefined && v !== "" && (isNaN(parseFloat(v)) || parseFloat(v) < 0 || parseFloat(v) > c.max)) {
-        notify(`${c.label} must be between 0 and ${c.max}.`, "err");
-        return;
-      }
-    }
-    const pts = parseFloat(scoreInput);
-    if (isNaN(pts) || pts < 0 || pts > STAGE_MAX) {
-      notify(`Enter marks between 0 and ${STAGE_MAX}.`, "err");
+    const filled = RUBRICS[stage].filter((c) => rubric[c.key] !== undefined && rubric[c.key].trim() !== "");
+    const criteria = filled.length ? Object.fromEntries(filled.map((c) => [c.key, Number(rubric[c.key])])) : undefined;
+    // Same validator the server runs: every criterion 0..max, total 0..25 and equal to the rubric sum.
+    const checked = validateScoreEntry({ stage, points: scoreInput.trim() === "" ? NaN : Number(scoreInput), criteria });
+    if (!checked.ok) {
+      notify(checked.error, "err");
       return;
     }
-    const criteria = Object.fromEntries(
-      RUBRICS[stage].filter((c) => rubric[c.key] !== undefined && rubric[c.key] !== "").map((c) => [c.key, parseFloat(rubric[c.key])])
-    );
+    const pts = checked.value.points;
     try {
       await adminRecordScoreEntry(
         team.id,
         stage,
         pts,
         scoreNote || `Level ${stage} marks`,
-        Object.keys(criteria).length ? criteria : undefined
+        checked.value.criteria
       );
       notify(`${pts}/${STAGE_MAX} saved for ${team.name} in Level ${stage}.`);
       setScoreModalTeam(null);
       loadData();
     } catch (err: unknown) {
       notify(err instanceof Error ? err.message : "Failed to save score", "err");
+    }
+  };
+
+  // ── Attendance sheet export (server-generated PDF, admin-only route) ──
+  const [downloadingAttendance, setDownloadingAttendance] = useState(false);
+  const handleDownloadAttendance = async () => {
+    setDownloadingAttendance(true);
+    try {
+      const res = await fetch("/api/admin/attendance", { cache: "no-store" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        notify(body.error || `Could not download the attendance sheet (HTTP ${res.status}).`, "err");
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Visual_Intelligence_2.0_Attendance_Sheet.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      notify("Attendance sheet downloaded.");
+    } catch {
+      notify("Network error — could not download the attendance sheet.", "err");
+    } finally {
+      setDownloadingAttendance(false);
     }
   };
 
@@ -572,6 +607,15 @@ export default function AdminTeamsClient() {
           <p className="text-xs text-white/50 mt-1 font-mono">
             Live list of every registered team. Enter marks for all four levels here, shortlist after Level 2, and pick Level 4 teams after Level 3.
           </p>
+          <button
+            onClick={handleDownloadAttendance}
+            disabled={downloadingAttendance}
+            aria-busy={downloadingAttendance}
+            className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/20 bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-mono font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            {downloadingAttendance ? "Preparing PDF…" : "Download Attendance Sheet (PDF)"}
+          </button>
         </div>
 
         {/* Global Summary Stats */}
@@ -766,6 +810,20 @@ export default function AdminTeamsClient() {
               <span className="text-amber-300 font-bold text-base">{Math.max(0, (data?.teams.length ?? 0) - selectedForL3.size)}</span>
             </div>
           </div>
+
+          <ShortlistRecommendation
+            title={`Recommended top ${topAfterR2} for Level 3`}
+            basis={`Level 1 + Level 2 marks (out of ${STAGE_MAX * 2}), registered teams only`}
+            partColumns={[{ key: "r1", label: "L1 /25" }, { key: "r2", label: "L2 /25" }]}
+            totalLabel="L1+L2 /50"
+            rec={recAfterR2}
+            topN={topAfterR2}
+            onTopNChange={setTopAfterR2}
+            onApply={() => applyRecommendation(2)}
+            selectedIds={selectedForL3}
+            onToggle={toggleSelectTeamForL3}
+            accent="emerald"
+          />
         </div>
       )}
 
@@ -833,6 +891,20 @@ export default function AdminTeamsClient() {
               <span className="text-amber-300 font-bold text-base">{Math.max(0, l3Pool.length - selectedForL4.size)}</span>
             </div>
           </div>
+
+          <ShortlistRecommendation
+            title={`Recommended top ${topAfterR3} for Level 4`}
+            basis={`Level 3 marks (out of ${STAGE_MAX}), Level 3 teams only`}
+            partColumns={[]}
+            totalLabel="L3 /25"
+            rec={recAfterR3}
+            topN={topAfterR3}
+            onTopNChange={setTopAfterR3}
+            onApply={() => applyRecommendation(3)}
+            selectedIds={selectedForL4}
+            onToggle={toggleSelectTeamForL4}
+            accent="wine"
+          />
         </div>
       )}
 
@@ -1322,7 +1394,7 @@ export default function AdminTeamsClient() {
                       type="number"
                       min={0}
                       max={c.max}
-                      step={1}
+                      step="any"
                       value={rubric[c.key] ?? ""}
                       onChange={(e) => updateRubric(c.key, e.target.value)}
                       className="w-14 px-2 py-1 rounded-lg bg-black/40 border border-white/20 text-center font-bold text-white"
@@ -1331,6 +1403,19 @@ export default function AdminTeamsClient() {
                   </span>
                 </label>
               ))}
+              {scoreModalTeam.stage === 2 && (
+                <label className="flex items-center justify-between gap-3 pt-2 border-t border-white/10">
+                  <span className="text-white/50 text-[10px]">Solve time from the Form (minutes) — fills Speed</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    onBlur={(e) => applySolveTime(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && applySolveTime((e.target as HTMLInputElement).value)}
+                    className="w-14 px-2 py-1 rounded-lg bg-black/40 border border-white/20 text-center font-bold text-white"
+                  />
+                </label>
+              )}
             </div>
 
             <div className="space-y-1.5">

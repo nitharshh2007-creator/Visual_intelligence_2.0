@@ -584,6 +584,36 @@ export const CYBER_THEMES: CyberTheme[] = [
     ],
     visual_style: "football",
     sort_order: 38
+  },
+  {
+    theme_id: "the-upside-down",
+    title: "The Upside Down",
+    description_line1: "Visual Style: A dark parallel world of black skies, crimson rift lighting, drifting ash particles, and flickering supernatural glitches.",
+    description_line2: "What to Create: Turn the webpage into a portal to the Upside Down with crimson-lit headings, floating spore particles, flickering glitch text, and vine-cracked dark cards.",
+    instructions: "Build a cinematic horror atmosphere with pitch-black backgrounds, pulsing red light, eerie floating particles, and subtle supernatural glitch effects that never hurt readability.",
+    palette: [
+      { name: "Upside Black", hex: "#070405" },
+      { name: "Rift Crimson", hex: "#b3001b" },
+      { name: "Gate Ember", hex: "#ff3b30" },
+      { name: "Spore Ash", hex: "#8c8a93" }
+    ],
+    visual_style: "upside-down",
+    sort_order: 39
+  },
+  {
+    theme_id: "phantom-protocol",
+    title: "Phantom Protocol",
+    description_line1: "Visual Style: Covert cybersecurity consoles, matte-black surfaces, neon-green terminal text, encrypted data streams, and classified-file stamps.",
+    description_line2: "What to Create: Rebuild the webpage as a classified intrusion-response console with digital-rain backgrounds, encrypted hash readouts, redaction bars, and CLASSIFIED access badges.",
+    instructions: "Design a stealthy cyber-ops interface using matte-black panels, glowing green monospace text, falling digital rain, and encrypted-data motifs in a strict, minimal layout.",
+    palette: [
+      { name: "Matte Black", hex: "#0a0b0a" },
+      { name: "Phantom Green", hex: "#00ff66" },
+      { name: "Cipher Graphite", hex: "#1c201d" },
+      { name: "Redacted Gray", hex: "#6f7a72" }
+    ],
+    visual_style: "phantom-protocol",
+    sort_order: 40
   }
 ];
 
